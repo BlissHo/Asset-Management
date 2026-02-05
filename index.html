@@ -153,4 +153,40 @@
                 // 주의: 실제 운영 시에는 개인 API 키가 필요합니다. 
                 // 여기서는 연습용으로 야후 파이낸스 체계를 모방한 무료 프록시를 시뮬레이션합니다.
                 const response = await fetch(`https://query1.finance.yahoo.com/v8/finance/chart/${ticker}`);
-                // 웹 브라우저 보안(CORS)으로 인해 직접 호출이 막힐 수 있어, 실패 시 고정 더미 데이터를
+                // 웹 브라우저 보안(CORS)으로 인해 직접 호출이 막힐 수 있어, 실패 시 고정 더미 데이터를 제공합니다.
+                if(!response.ok) throw new Error();
+                const data = await response.json();
+                const price = data.chart.result[0].meta.regularMarketPrice;
+                priceEl.innerText = price.toFixed(2);
+            } catch (e) {
+                // API 차단 대비용 시뮬레이션 데이터 (실제 연동을 위해서는 백엔드나 Proxy 필요)
+                const mockPrices = {"NVDA": 145.20, "TSLA": 185.30, "AAPL": 190.10, "MSFT": 410.50};
+                priceEl.innerText = (mockPrices[ticker] || 150.00).toFixed(2);
+            }
+            loadingEl.innerText = "";
+            calculateStock(el);
+        }
+
+        function calculateStock(el) {
+            const row = el.closest('tr');
+            const lastPrice = parseFloat(row.querySelector('.last-price').innerText);
+            const buyPrice = parseFloat(row.querySelector('.buy-price').value);
+            const qty = parseFloat(row.querySelector('.qty').value);
+
+            if (qty > 0) {
+                const rate = ((lastPrice - buyPrice) / buyPrice * 100).toFixed(2);
+                const amt = ((lastPrice - buyPrice) * qty).toFixed(2);
+                const rateEl = row.querySelector('.profit-rate');
+                const amtEl = row.querySelector('.profit-amt');
+
+                rateEl.innerText = rate + "%";
+                amtEl.innerText = "$" + parseFloat(amt).toLocaleString();
+                rateEl.className = "profit-rate " + (rate >= 0 ? "plus" : "more");
+                amtEl.className = "profit-amt " + (amt >= 0 ? "plus" : "minus");
+            }
+        }
+
+        getExchangeRate();
+    </script>
+</body>
+</html>
