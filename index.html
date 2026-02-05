@@ -5,95 +5,155 @@
     <title>나의 자산 관리 서비스</title>
     <style>
         body { font-family: 'Apple SD Gothic Neo', sans-serif; padding: 20px; background-color: #f0f2f5; color: #1c1e21; }
-        .card { background: white; padding: 25px; border-radius: 15px; box-shadow: 0 4px 12px rgba(0,0,0,0.1); max-width: 500px; margin: 0 auto; }
+        .card { background: white; padding: 25px; border-radius: 15px; box-shadow: 0 4px 12px rgba(0,0,0,0.1); max-width: 800px; margin: 0 auto; }
         h1 { font-size: 1.4rem; margin-top: 0; color: #1877f2; text-align: center; }
         .rate-box { background: #e7f3ff; padding: 10px; border-radius: 8px; text-align: center; margin-bottom: 20px; font-weight: bold; }
         
-        .input-section { display: flex; gap: 10px; margin-bottom: 20px; }
-        input { flex: 1; padding: 10px; border: 1px solid #ddd; border-radius: 8px; font-size: 1rem; }
-        .btn { padding: 10px 15px; border: none; border-radius: 8px; cursor: pointer; color: white; font-weight: bold; }
+        /* 원화 입력 섹션 */
+        .input-section { display: flex; gap: 10px; margin-bottom: 20px; justify-content: center; }
+        input { padding: 10px; border: 1px solid #ddd; border-radius: 8px; font-size: 1rem; width: 200px; }
+        .btn { padding: 10px 20px; border: none; border-radius: 8px; cursor: pointer; color: white; font-weight: bold; }
         .btn-add { background-color: #42b72a; }
         .btn-sub { background-color: #fa3e3e; }
         
-        .summary-section { border-top: 2px solid #eee; pt-20px; }
-        .summary-row { display: flex; justify-content: space-between; padding: 12px 0; border-bottom: 1px solid #f0f2f5; }
-        .label { color: #65676b; font-weight: 500; }
-        .value { font-weight: bold; font-size: 1.1rem; }
+        .summary-row { display: flex; justify-content: space-between; padding: 12px 0; border-bottom: 1px solid #f0f2f5; font-size: 1.1rem; }
+        .value { font-weight: bold; }
         .usd-value { color: #1877f2; }
+
+        /* 주식 테이블 섹션 */
+        .stock-section { margin-top: 30px; border-top: 2px solid #eee; pt: 20px; }
+        table { width: 100%; border-collapse: collapse; margin-top: 15px; font-size: 0.9rem; }
+        th { background: #f8f9fa; padding: 10px; border-bottom: 2px solid #dee2e6; text-align: center; }
+        td { padding: 10px; border-bottom: 1px solid #eee; text-align: center; }
+        .stock-input { width: 80px; padding: 5px; text-align: center; border: 1px solid #ddd; border-radius: 4px; }
+        .plus { color: #d63031; font-weight: bold; }
+        .minus { color: #0984e3; font-weight: bold; }
     </style>
 </head>
 <body>
 
     <div class="card">
         <h1>💰 자산 관리 대시보드</h1>
-        
         <div id="rate-box" class="rate-box">환율 불러오는 중...</div>
 
         <div class="input-section">
-            <input type="number" id="asset-input" placeholder="금액 입력(원)">
+            <input type="text" id="asset-input" placeholder="금액 입력(원)" oninput="formatNumber(this)">
             <button class="btn btn-add" onclick="updateAsset(1)">추가</button>
             <button class="btn btn-sub" onclick="updateAsset(-1)">빼기</button>
         </div>
 
-        <div class="summary-section">
-            <div class="summary-row">
-                <span class="label">총 자산 (원화)</span>
-                <span class="value"><span id="total-krw">0</span>원</span>
-            </div>
-            <div class="summary-row">
-                <span class="label">총 자산 (달러)</span>
-                <span class="value usd-value"><span id="total-usd">0.00</span>달러</span>
-            </div>
+        <div class="summary-row">
+            <span>총 자산 (원화)</span>
+            <span class="value"><span id="total-krw">1,000,000</span>원</span>
         </div>
-        
+        <div class="summary-row" style="border-bottom: none;">
+            <span>총 자산 (달러)</span>
+            <span class="value usd-value"><span id="total-usd">0.00</span>달러</span>
+        </div>
+
         <p style="font-size: 0.8rem; color: #bcc0c4; margin-top: 15px; text-align: center;">
             * 1분마다 환율이 자동 갱신됩니다.
         </p>
+
+        <div class="stock-section">
+            <h2 style="font-size: 1.2rem; margin-bottom: 10px;">📈 주식 자산 상세</h2>
+            <table>
+                <thead>
+                    <tr>
+                        <th>주식(국가)</th>
+                        <th>티커</th>
+                        <th>종가($)</th>
+                        <th>매수 평단($)</th>
+                        <th>수량</th>
+                        <th>수익률</th>
+                        <th>수익금($)</th>
+                    </tr>
+                </thead>
+                <tbody id="stock-body">
+                    <script>
+                        for(let i=0; i<3; i++) {
+                            document.write(`
+                                <tr>
+                                    <td>미국</td>
+                                    <td><input type="text" class="stock-input" placeholder="NVDA" oninput="calculateStock(this)"></td>
+                                    <td class="last-price">140.00</td>
+                                    <td><input type="number" class="stock-input buy-price" placeholder="0" oninput="calculateStock(this)"></td>
+                                    <td><input type="number" class="stock-input qty" placeholder="0" oninput="calculateStock(this)"></td>
+                                    <td class="profit-rate">-</td>
+                                    <td class="profit-amt">-</td>
+                                </tr>
+                            `);
+                        }
+                    </script>
+                </tbody>
+            </table>
+        </div>
     </div>
 
     <script>
-        let currentKrw = 1000000; // 초기 자산 100만원
-        let exchangeRate = 1350;   // 초기 환율 값
+        let currentKrw = 1000000;
+        let exchangeRate = 1450;
 
-        // 1. 환율 업데이트 함수
+        // 1. 천 단위 쉼표 포맷팅
+        function formatNumber(obj) {
+            let val = obj.value.replace(/[^0-9]/g, "");
+            obj.value = val.replace(/\B(?=(\d{3})+(?!\d))/g, ",");
+        }
+
+        // 2. 환율 가져오기
         async function getExchangeRate() {
             try {
                 const response = await fetch('https://open.er-api.com/v6/latest/USD');
                 const data = await response.json();
                 exchangeRate = data.rates.KRW;
                 document.getElementById('rate-box').innerHTML = `현재 환율: 1달러 = <b>${exchangeRate.toFixed(2)}원</b>`;
-                calculate(); // 환율이 바뀌면 계산 다시 실행
+                updateDisplay();
             } catch (e) {
-                document.getElementById('rate-box').innerText = "환율 정보를 불러올 수 없습니다.";
+                document.getElementById('rate-box').innerText = "환율 로딩 실패";
             }
         }
 
-        // 2. 자산 더하기/빼기 실행
+        // 3. 원화 자산 업데이트
         function updateAsset(direction) {
             const input = document.getElementById('asset-input');
-            const value = parseInt(input.value);
+            const numValue = parseInt(input.value.replace(/,/g, ""));
+            if (isNaN(numValue)) return;
 
-            if (isNaN(value) || value <= 0) {
-                alert("올바른 금액을 입력해주세요.");
-                return;
-            }
-
-            currentKrw += (value * direction);
-            input.value = ''; // 입력창 비우기
-            calculate();
+            currentKrw += (numValue * direction);
+            input.value = "";
+            updateDisplay();
         }
 
-        // 3. 최종 계산 및 화면 표시
-        function calculate() {
-            const usdValue = (currentKrw / exchangeRate).toFixed(2);
-            
+        function updateDisplay() {
             document.getElementById('total-krw').innerText = currentKrw.toLocaleString();
-            document.getElementById('total-usd').innerText = parseFloat(usdValue).toLocaleString(undefined, {minimumFractionDigits: 2});
+            document.getElementById('total-usd').innerText = (currentKrw / exchangeRate).toLocaleString(undefined, {minimumFractionDigits: 2});
         }
 
-        // 초기 실행
+        // 4. 주식 계산 로직
+        function calculateStock(el) {
+            const row = el.closest('tr');
+            const lastPrice = parseFloat(row.querySelector('.last-price').innerText);
+            const buyPrice = parseFloat(row.querySelector('.buy-price').value);
+            const qty = parseFloat(row.querySelector('.qty').value);
+
+            if (!isNaN(buyPrice) && !isNaN(qty) && qty > 0) {
+                const rate = ((lastPrice - buyPrice) / buyPrice * 100).toFixed(2);
+                const amt = ((lastPrice - buyPrice) * qty).toFixed(2);
+
+                const rateEl = row.querySelector('.profit-rate');
+                const amtEl = row.querySelector('.profit-amt');
+
+                rateEl.innerText = rate + "%";
+                amtEl.innerText = "$" + parseFloat(amt).toLocaleString();
+
+                // 색상 적용
+                rateEl.className = rate >= 0 ? "profit-rate plus" : "profit-rate minus";
+                amtEl.className = "profit-amt " + (amt >= 0 ? "plus" : "minus");
+            }
+        }
+
         getExchangeRate();
-        setInterval(getExchangeRate, 60000); // 1분마다 환율 갱신
+        setInterval(getExchangeRate, 60000);
     </script>
 </body>
 </html>
