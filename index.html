@@ -21,28 +21,31 @@
         <p style="font-size: 0.8em; color: gray;">* 1분마다 실시간 환율이 업데이트됩니다.</p>
     </div>
 
-    <script>
+<script>
         async function getExchangeRate() {
             try {
-                // 무료 환율 API 호출 (현재 1달러당 원화 가격)
-                const response = await fetch('https://open.er-api.com/v6/latest/USD');
+                // 더 안정적인 예비 API (Fawazahmed0)
+                const response = await fetch('https://cdn.jsdelivr.net/npm/@fawazahmed0/currency-api@latest/v1/currencies/usd.json');
                 const data = await response.json();
-                const rate = data.rates.KRW;
+                const rate = data.usd.krw; // 이 API는 소문자로 결과를 줍니다.
                 
-                const krwAsset = 1000000; // 기준 자산
+                const krwAsset = 1000000; 
                 const usdAsset = (krwAsset / rate).toFixed(2);
 
-                document.getElementById('exchange-rate').innerHTML = `현재 환율: <b>1달러 = ${rate.toLocaleString()}원</b>`;
+                document.getElementById('exchange-rate').innerHTML = `현재 환율: <b>1달러 = ${rate.toFixed(2)}원</b>`;
                 document.getElementById('usd-result').innerText = `$${usdAsset}`;
-                document.getElementById('loading').style.display = 'none';
+                if(document.getElementById('loading')) document.getElementById('loading').style.display = 'none';
             } catch (error) {
-                document.getElementById('exchange-rate').innerText = "환율 정보를 가져오지 못했습니다.";
+                console.error("환율 로딩 실패:", error);
+                document.getElementById('exchange-rate').innerText = "환율 정보를 다시 불러오는 중입니다...";
+                // 실패 시 5초 후 재시도
+                setTimeout(getExchangeRate, 5000);
             }
         }
 
-        // 페이지 로드 시 실행 및 1분마다 업데이트
         getExchangeRate();
         setInterval(getExchangeRate, 60000);
     </script>
+
 </body>
 </html>
