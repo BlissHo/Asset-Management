@@ -26,9 +26,7 @@
         .input-group label { display: block; font-size: 13px; margin-bottom: 5px; color: var(--gray); }
         input, select { width: 100%; padding: 12px; border: 1px solid #ddd; border-radius: 8px; font-size: 15px; box-sizing: border-box; }
         .btn { width: 100%; padding: 15px; background: var(--primary); color: white; border: none; border-radius: 10px; font-weight: bold; cursor: pointer; }
-        /* 매매 내역 아이템 스타일 */
-        .trade-item { border-bottom: 1px solid #eee; padding: 10px 0; display: flex; justify-content: space-between; align-items: center; }
-        .trade-item:last-child { border-bottom: none; }
+        .trade-item { border-bottom: 1px solid #eee; padding: 12px 0; display: flex; justify-content: space-between; align-items: center; }
     </style>
 </head>
 <body>
@@ -73,7 +71,7 @@
                 <div class="card">
                     <div class="input-group">
                         <label>종목명</label>
-                        <input type="text" id="stock-name" placeholder="예: NVDA, 삼성전자">
+                        <input type="text" id="stock-name" placeholder="예: 삼성전자">
                     </div>
                     <div class="input-group">
                         <label>수량</label>
@@ -95,117 +93,3 @@
                 </div>
                 <div class="card">
                     <div class="card-title">매매 내역 리스트</div>
-                    <div id="trade-list">
-                        <p style="text-align: center; color: var(--gray);">데이터를 불러오는 중...</p>
-                    </div>
-                </div>
-            </div>
-        </div>
-
-        <nav class="bottom-nav">
-            <button class="nav-item active" onclick="changeTab('home', this)">
-                <div class="nav-icon">🏠</div>홈
-            </button>
-            <button class="nav-item" onclick="changeTab('log', this)">
-                <div class="nav-icon">📊</div>매매일지
-            </button>
-            <button class="nav-item" onclick="changeTab('profit', this)">
-                <div class="nav-icon">💰</div>수익현황
-            </button>
-            <button class="nav-item" onclick="alert('준비 중입니다')">
-                <div class="nav-icon">⚙️</div>설정
-            </button>
-        </nav>
-    </div>
-
-    <script>
-        // 1. Firebase 설정
-        const firebaseConfig = {
-            apiKey: "AIzaSyCEPH9Y5e0VoqGl4FViWo5pVlA8UlxpzCg",
-            authDomain: "assetmanager-66aec.firebaseapp.com",
-            projectId: "assetmanager-66aec",
-            storageBucket: "assetmanager-66aec.firebasestorage.app",
-            messagingSenderId: "928785817084",
-            appId: "1:928785817084:web:2b75ce39d745bdc3202679"
-        };
-        firebase.initializeApp(firebaseConfig);
-        const auth = firebase.auth();
-        const db = firebase.firestore();
-
-        // 2. 천단위 쉼표 함수
-        function formatNumber(el) {
-            let val = el.value.replace(/[^0-9]/g, "");
-            if(val) el.value = Number(val).toLocaleString();
-        }
-
-        // 3. 탭 전환 및 데이터 불러오기
-        function changeTab(pageId, el) {
-            document.querySelectorAll('.page').forEach(p => p.classList.remove('active-page'));
-            document.getElementById('page-' + pageId).classList.add('active-page');
-            document.querySelectorAll('.nav-item').forEach(btn => btn.classList.remove('active'));
-            el.classList.add('active');
-
-            if(pageId === 'profit') loadTrades(); // 수익현황 탭 클릭 시 데이터 로드
-        }
-
-        // 4. 데이터 저장 (매매일지)
-        async function saveData() {
-            const user = auth.currentUser;
-            if (!user) return alert("로그인 후 이용 가능합니다.");
-
-            const name = document.getElementById('stock-name').value;
-            const qty = Number(document.getElementById('stock-qty').value.replace(/,/g, ""));
-            const price = Number(document.getElementById('stock-price').value.replace(/,/g, ""));
-
-            if(!name || !qty || !price) return alert("모든 칸을 채워주세요!");
-
-            try {
-                await db.collection("trades").add({
-                    uid: user.uid,
-                    stockName: name,
-                    quantity: qty,
-                    price: price,
-                    date: new Date()
-                });
-                alert("성공적으로 저장되었습니다!");
-                document.getElementById('stock-name').value = "";
-                document.getElementById('stock-qty').value = "";
-                document.getElementById('stock-price').value = "";
-            } catch(e) { alert("저장 실패: " + e.message); }
-        }
-
-        // 5. 데이터 불러오기 (수익현황)
-        async function loadTrades() {
-            const user = auth.currentUser;
-            const listDiv = document.getElementById('trade-list');
-            const totalDiv = document.getElementById('total-invested');
-            
-            try {
-                const snapshot = await db.collection("trades")
-                    .where("uid", "==", user.uid)
-                    .orderBy("date", "desc")
-                    .get();
-
-                let html = "";
-                let grandTotal = 0;
-
-                snapshot.forEach(doc => {
-                    const d = doc.data();
-                    const sum = d.quantity * d.price;
-                    grandTotal += sum;
-                    html += `
-                        <div class="trade-item">
-                            <div>
-                                <strong>${d.stockName}</strong><br>
-                                <small>${d.quantity}주 x ₩${d.price.toLocaleString()}</small>
-                            </div>
-                            <div style="text-align:right;">
-                                <strong>₩${sum.toLocaleString()}</strong>
-                            </div>
-                        </div>
-                    `;
-                });
-
-                listDiv.innerHTML = html || "<p style='text-align:center;'>내역이 없습니다.</p>";
-                totalDiv.innerText = `₩ ${grandTotal.toLocaleString()}`;
-            } catch(e
