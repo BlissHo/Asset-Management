@@ -10,14 +10,16 @@
     <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
     <style>
         :root { --primary: #1877f2; --bg: #f0f2f5; --text: #1c1e21; --gray: #65676b; --up: #d93025; --down: #1266df; --green: #00a400; --yellow: #f1c40f; }
-        body { font-family: -apple-system, sans-serif; background: var(--bg); color: var(--text); margin: 0; -webkit-font-smoothing: antialiased; }
+        body { font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif; background: var(--bg); color: var(--text); margin: 0; -webkit-font-smoothing: antialiased; }
         .container { padding: 20px; max-width: 600px; margin: 0 auto; box-sizing: border-box; padding-bottom: 120px; }
         .card { background: white; border-radius: 20px; padding: 20px; box-shadow: 0 4px 15px rgba(0,0,0,0.05); margin-bottom: 20px; }
         .input-group { margin-bottom: 15px; width: 100%; box-sizing: border-box; }
         .input-row { display: flex; gap: 10px; margin-bottom: 12px; }
-        input, select { flex: 1; padding: 16px; border: 1.5px solid #eee; border-radius: 12px; font-size: 16px; outline: none; }
-        .btn { width: 100%; padding: 18px; background: var(--primary); color: white; border: none; border-radius: 14px; font-size: 18px; font-weight: bold; cursor: pointer; }
-        .bottom-nav { position: fixed; bottom: 0; left: 50%; transform: translateX(-50%); width: 100%; max-width: 600px; background: white; display: flex; border-top: 1px solid #eee; z-index: 1000; padding: 12px 0 calc(12px + env(safe-area-inset-bottom)); }
+        input, select { flex: 1; padding: 16px; border: 1.5px solid #eee; border-radius: 12px; font-size: 16px; outline: none; transition: border-color 0.2s; }
+        input:focus { border-color: var(--primary); }
+        .btn { width: 100%; padding: 18px; background: var(--primary); color: white; border: none; border-radius: 14px; font-size: 18px; font-weight: bold; cursor: pointer; transition: opacity 0.2s; }
+        .btn:active { opacity: 0.8; }
+        .bottom-nav { position: fixed; bottom: 0; left: 50%; transform: translateX(-50%); width: 100%; max-width: 600px; background: rgba(255,255,255,0.9); backdrop-filter: blur(10px); display: flex; border-top: 1px solid #eee; z-index: 1000; padding: 12px 0 calc(12px + env(safe-area-inset-bottom)); }
         .nav-item { flex: 1; text-align: center; border: none; background: none; display: flex; flex-direction: column; align-items: center; gap: 6px; color: var(--gray); cursor: pointer; }
         .nav-item div { font-size: 26px; }
         .nav-item span { font-size: 13px; font-weight: bold; }
@@ -39,11 +41,12 @@
 
     <div id="auth-section" class="container" style="display: flex; align-items: center; min-height: 100vh;">
         <div class="card" style="width: 100%; text-align: center;">
-            <h1 style="color: var(--primary); margin-bottom: 30px;">BlissHo Asset</h1>
+            <h1 style="color: var(--primary); margin-bottom: 30px; letter-spacing: -1px;">BlissHo Asset</h1>
             <input type="email" id="email" class="input-group" placeholder="이메일">
             <input type="password" id="pw1" class="input-group" placeholder="비밀번호">
-            <div style="text-align: left; margin-bottom: 15px;">
-                <input type="checkbox" id="remember-me"> <label for="remember-me" style="font-size:14px; color:var(--gray);">로그인 정보(ID/PW) 저장</label>
+            <div style="text-align: left; margin-bottom: 15px; padding-left: 5px;">
+                <input type="checkbox" id="remember-me" style="flex: none; width: 18px; height: 18px; vertical-align: middle;"> 
+                <label for="remember-me" style="font-size:14px; color:var(--gray); vertical-align: middle;">로그인 정보(ID/PW) 저장</label>
             </div>
             <button class="btn" onclick="handleAuth('login')">로그인</button>
             <div class="auth-links"><span onclick="handleAuth('signup')">계정 생성</span><span onclick="resetPassword()">비밀번호 찾기</span></div>
@@ -54,7 +57,296 @@
     <div id="main-section" style="display: none;">
         <div class="container">
             <div id="page-home" class="page active-page">
-                <div class="card" style="text-align: center;">
-                    <div style="font-size: 15px; color: var(--gray);">내 총 자산 평가액</div>
-                    <div id="h-total-krw" style="font-size:32px; font-weight:800; color:var(--primary);">₩ 0</div>
-                    <div id="h-total-
+                <div class="card" style="text-align: center; background: linear-gradient(135deg, #1877f2, #005ecb); color: white;">
+                    <div style="font-size: 15px; opacity: 0.9;">내 총 자산 평가액</div>
+                    <div id="h-total-krw" style="font-size:32px; font-weight:800; margin: 5px 0;">₩ 0</div>
+                    <div id="h-total-usd" style="font-size:20px; opacity: 0.8;">$ 0.00</div>
+                </div>
+                <div class="card">
+                    <h3 style="margin-top:0;">📊 자산 구성 비중</h3>
+                    <div style="height: 280px;"><canvas id="assetChart"></canvas></div>
+                </div>
+            </div>
+
+            <div id="page-log" class="page">
+                <div class="card">
+                    <h3>💰 입출금</h3>
+                    <div class="input-row">
+                        <select id="fund-currency" style="flex:0.4;"><option value="KRW">원화</option><option value="USD">달러</option></select>
+                        <input type="text" id="fund-amount" oninput="formatNumber(this)" placeholder="금액">
+                    </div>
+                    <div class="input-row">
+                        <button onclick="saveFund('in')" class="btn" style="background:var(--green); flex:1;">입금 (+)</button>
+                        <button onclick="saveFund('out')" class="btn" style="background:var(--up); flex:1;">출금 (-)</button>
+                    </div>
+                </div>
+                <div class="card">
+                    <h3>📝 매수/매도</h3>
+                    <div class="input-row">
+                        <select id="trade-type" style="flex:0.5;"><option value="buy">매수</option><option value="sell">매도</option></select>
+                        <select id="trade-currency" style="flex:0.5;"><option value="KRW">₩ (원화)</option><option value="USD">$ (미국)</option></select>
+                    </div>
+                    <input type="text" id="stock-name" class="input-group" placeholder="종목명">
+                    <div class="input-row">
+                        <input type="text" id="stock-qty" oninput="formatNumber(this)" placeholder="수량">
+                        <input type="text" id="stock-price" oninput="formatNumber(this)" placeholder="단가">
+                    </div>
+                    <button class="btn" onclick="saveTrade()">저장하기</button>
+                </div>
+                <div class="card">
+                    <h3>📅 활동 내역</h3>
+                    <div id="log-history-list" class="history-list"></div>
+                </div>
+            </div>
+
+            <div id="page-profit" class="page">
+                <div class="card" style="background: var(--primary); color: white; text-align: center;">
+                    <small style="opacity:0.8;">총 평가금액</small>
+                    <div id="p-total-eval" style="font-size: 26px; font-weight: bold;">₩ 0</div>
+                    <div id="p-total-eval-usd" style="font-size: 14px; opacity:0.9;">$ 0.00</div>
+                </div>
+                <div class="card" style="padding: 15px;">
+                    <table class="profit-table">
+                        <thead>
+                            <tr>
+                                <th>종목/수량</th>
+                                <th>평단/종가</th>
+                                <th style="text-align:right;">평가액/수익률</th>
+                            </tr>
+                        </thead>
+                        <tbody id="stock-profit-table-body"></tbody>
+                    </table>
+                </div>
+            </div>
+
+            <div id="page-more" class="page">
+                <div class="card">
+                    <h3>⚙️ 관리</h3>
+                    <button class="btn" style="background:var(--up); margin-bottom:10px;" onclick="clearAllData()">전체 데이터 초기화</button>
+                    <button class="btn" style="background:var(--gray);" onclick="location.reload()">로그아웃</button>
+                </div>
+            </div>
+        </div>
+
+        <nav class="bottom-nav">
+            <button class="nav-item active" onclick="changeTab('home', this)"><div>🏠</div><span>홈</span></button>
+            <button class="nav-item" onclick="changeTab('log', this)"><div>📊</div><span>일지</span></button>
+            <button class="nav-item" onclick="changeTab('profit', this)"><div>💰</div><span>수익</span></button>
+            <button class="nav-item" onclick="changeTab('more', this)"><div>⚙️</div><span>더보기</span></button>
+        </nav>
+    </div>
+
+    <script>
+        // 1. Firebase 설정 (v1.0.12와 동일)
+        const firebaseConfig = { 
+            apiKey: "AIzaSyCEPH9Y5e0VoqGl4FViWo5pVlA8UlxpzCg", 
+            authDomain: "assetmanager-66aec.firebaseapp.com", 
+            projectId: "assetmanager-66aec", 
+            storageBucket: "assetmanager-66aec.firebasestorage.app", 
+            messagingSenderId: "928785817084", 
+            appId: "1:928785817084:web:2b75ce39d745bdc3202679" 
+        };
+        firebase.initializeApp(firebaseConfig);
+        const auth = firebase.auth();
+        const db = firebase.firestore();
+        let myChart = null;
+        const EX_RATE = 1350.5;
+
+        // 2. 로그인 세션 감시 (v1.0.12 원본 복구)
+        auth.onAuthStateChanged(user => {
+            if (user) {
+                document.getElementById('auth-section').style.display = 'none';
+                document.getElementById('main-section').style.display = 'block';
+                subscribeData();
+            } else {
+                document.getElementById('auth-section').style.display = 'flex';
+                document.getElementById('main-section').style.display = 'none';
+            }
+        });
+
+        // 3. ID/PW 불러오기 (v1.0.12 원본 복구)
+        window.onload = () => {
+            const savedEmail = localStorage.getItem('savedEmail');
+            const savedPw = localStorage.getItem('savedPw');
+            if (savedEmail) {
+                document.getElementById('email').value = savedEmail;
+                document.getElementById('remember-me').checked = true;
+            }
+            if (savedPw) {
+                document.getElementById('pw1').value = savedPw;
+            }
+        };
+
+        // 4. 데이터 구독 및 UI 업데이트
+        function subscribeData() {
+            db.collection("trades").where("uid", "==", auth.currentUser.uid)
+                .orderBy("date", "desc")
+                .onSnapshot(snap => {
+                    let trades = [];
+                    snap.forEach(doc => trades.push({id: doc.id, ...doc.data()}));
+                    updateUI(trades);
+                });
+        }
+
+        function updateUI(trades) {
+            let cashKRW = 0, cashUSD = 0, stocks = {};
+            let logHtml = "";
+            
+            // 데이터 처리 시 정렬을 보장하여 마지막 가격(종가)을 추출
+            const sorted = [...trades].sort((a,b) => a.date.seconds - b.date.seconds);
+
+            sorted.forEach(t => {
+                const cur = t.currency || 'KRW';
+                if(t.type === 'fund') {
+                    if(cur === 'KRW') cashKRW += (t.direction === 'in' ? 1 : -1) * t.amount;
+                    else cashUSD += (t.direction === 'in' ? 1 : -1) * t.amount;
+                } else {
+                    const name = t.stockName.toUpperCase();
+                    if(!stocks[name]) stocks[name] = { qty: 0, cost: 0, cur: cur, lastPrice: 0 };
+                    stocks[name].lastPrice = t.price; // 마지막으로 입력된 단가를 종가로 간주
+                    if(t.type === 'buy') {
+                        stocks[name].qty += t.quantity;
+                        stocks[name].cost += (t.quantity * t.price);
+                    } else {
+                        stocks[name].qty -= t.quantity;
+                        stocks[name].cost -= (t.quantity * t.price);
+                    }
+                }
+            });
+
+            // 테이블 및 요약 생성
+            let stockHtml = "";
+            let totalStockKRW = 0;
+
+            for(let n in stocks) {
+                if(stocks[n].qty > 0) {
+                    const s = stocks[n];
+                    const avg = s.cost / s.qty;
+                    const profitRate = ((s.lastPrice - avg) / avg) * 100;
+                    const evalAmt = s.qty * s.lastPrice;
+                    const curSym = s.cur === 'USD' ? '$' : '₩';
+                    
+                    totalStockKRW += (s.cur === 'USD' ? evalAmt * EX_RATE : evalAmt);
+
+                    stockHtml += `<tr>
+                        <td><b>${n}</b><br><small style="color:var(--gray);">${s.qty}주</small></td>
+                        <td>
+                            <div style="font-size:11px; color:var(--gray);">평단:${curSym}${avg.toLocaleString(undefined, {maximumFractionDigits:2})}</div>
+                            <div style="font-weight:bold;">종가:${curSym}${s.lastPrice.toLocaleString()}</div>
+                        </td>
+                        <td style="text-align:right;">
+                            <div style="font-weight:bold; color:var(--primary);">${curSym}${evalAmt.toLocaleString()}</div>
+                            <div class="${profitRate >= 0 ? 'val-up' : 'val-down'}" style="font-size:11px;">
+                                ${profitRate >= 0 ? '▲' : '▼'}${Math.abs(profitRate).toFixed(2)}%
+                            </div>
+                        </td>
+                    </tr>`;
+                }
+            }
+
+            const totalAssets = cashKRW + (cashUSD * EX_RATE) + totalStockKRW;
+            document.getElementById('h-total-krw').innerText = `₩ ${Math.floor(totalAssets).toLocaleString()}`;
+            document.getElementById('h-total-usd').innerText = `$ ${(totalAssets / EX_RATE).toFixed(2)}`;
+            document.getElementById('p-total-eval').innerText = `₩ ${Math.floor(totalAssets).toLocaleString()}`;
+            document.getElementById('p-total-eval-usd').innerText = `$ ${(totalAssets / EX_RATE).toFixed(2)}`;
+            document.getElementById('stock-profit-table-body').innerHTML = stockHtml || "<tr><td colspan='3' style='text-align:center; padding:20px;'>보유 주식이 없습니다.</td></tr>";
+
+            // 일지 렌더링
+            trades.forEach(t => {
+                const isFund = t.type === 'fund';
+                const label = isFund ? (t.direction==='in'?'입금':'출금') : (t.type==='buy'?'매수':'매도');
+                logHtml += `<div style="display:flex; justify-content:space-between; padding:12px 0; border-bottom:1px solid #f0f0f0; align-items:center;">
+                    <div><span class="badge ${t.type==='buy'||t.direction==='in'?'in':'out'}">${label}</span> <b>${isFund? (t.currency==='USD'?'$':'₩')+t.amount.toLocaleString() : t.stockName+' '+t.quantity+'주'}</b></div>
+                    <div style="font-size:12px; color:var(--gray);">${t.date ? t.date.toDate().toLocaleDateString() : ''}</div>
+                </div>`;
+            });
+            document.getElementById('log-history-list').innerHTML = logHtml;
+            updateChart(totalStockKRW, cashKRW + (cashUSD * EX_RATE));
+        }
+
+        // 5. 기타 보조 함수 (v1.0.12 원본 로직)
+        function updateChart(stock, cash) {
+            const ctx = document.getElementById('assetChart').getContext('2d');
+            if(myChart) myChart.destroy();
+            myChart = new Chart(ctx, {
+                type: 'doughnut',
+                data: { labels: ['주식', '현금'], datasets: [{ data: [stock, cash], backgroundColor: ['#1877f2', '#00a400'] }] },
+                options: { responsive: true, maintainAspectRatio: false, plugins: { legend: { position: 'bottom' } } }
+            });
+        }
+
+        async function handleAuth(type) {
+            const email = document.getElementById('email').value;
+            const pw = document.getElementById('pw1').value;
+            const isRemember = document.getElementById('remember-me').checked;
+            if(!email || !pw) return alert("이메일과 비밀번호를 입력하세요.");
+            try {
+                if(type === 'login') await auth.signInWithEmailAndPassword(email, pw);
+                else await auth.createUserWithEmailAndPassword(email, pw);
+                
+                if(isRemember) {
+                    localStorage.setItem('savedEmail', email);
+                    localStorage.setItem('savedPw', pw);
+                } else {
+                    localStorage.removeItem('savedEmail');
+                    localStorage.removeItem('savedPw');
+                }
+            } catch(e) { alert(e.message); }
+        }
+
+        async function saveTrade() {
+            const name = document.getElementById('stock-name').value.trim();
+            const qty = Number(document.getElementById('stock-qty').value.replace(/,/g, ""));
+            const price = Number(document.getElementById('stock-price').value.replace(/,/g, ""));
+            if(!name || !qty || !price) return alert("모든 항목을 입력하세요.");
+            await db.collection("trades").add({
+                uid: auth.currentUser.uid, type: document.getElementById('trade-type').value,
+                currency: document.getElementById('trade-currency').value,
+                stockName: name, quantity: qty, price: price, date: new Date()
+            });
+            document.getElementById('stock-name').value = "";
+            document.getElementById('stock-qty').value = "";
+            document.getElementById('stock-price').value = "";
+        }
+
+        async function saveFund(dir) {
+            const amt = Number(document.getElementById('fund-amount').value.replace(/,/g, ""));
+            if(!amt) return;
+            await db.collection("trades").add({
+                uid: auth.currentUser.uid, type: 'fund', direction: dir,
+                currency: document.getElementById('fund-currency').value,
+                amount: amt, date: new Date()
+            });
+            document.getElementById('fund-amount').value = "";
+        }
+
+        function changeTab(pageId, el) {
+            document.querySelectorAll('.page').forEach(p => p.classList.remove('active-page'));
+            document.getElementById('page-' + pageId).classList.add('active-page');
+            document.querySelectorAll('.nav-item').forEach(btn => btn.classList.remove('active'));
+            el.classList.add('active');
+        }
+
+        function formatNumber(el) {
+            let val = el.value.replace(/[^0-9.]/g, "");
+            if(val) el.value = Number(val).toLocaleString();
+        }
+
+        async function clearAllData() {
+            if(!confirm("정말 모든 데이터를 삭제하시겠습니까?")) return;
+            const snap = await db.collection("trades").where("uid", "==", auth.currentUser.uid).get();
+            const batch = db.batch();
+            snap.forEach(doc => batch.delete(doc.ref));
+            await batch.commit();
+            alert("초기화되었습니다.");
+        }
+
+        async function resetPassword() {
+            const email = document.getElementById('email').value;
+            if(!email) return alert("이메일을 먼저 입력해 주세요.");
+            await auth.sendPasswordResetEmail(email);
+            alert("비밀번호 재설정 메일이 발송되었습니다.");
+        }
+    </script>
+</body>
+</html>
