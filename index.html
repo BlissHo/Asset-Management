@@ -26,11 +26,9 @@
         .badge { padding: 4px 10px; border-radius: 6px; font-size: 12px; color: white; font-weight: bold; }
         .in { background: var(--green); } .out { background: var(--up); }
         .history-list { max-height: 350px; overflow-y: auto; }
-        .profit-table { width: 100%; border-collapse: collapse; font-size: 12px; }
-        .profit-table th { text-align: left; color: var(--gray); padding-bottom: 10px; border-bottom: 1px solid #eee; font-size: 11px; }
+        .profit-table { width: 100%; border-collapse: collapse; font-size: 13px; }
+        .profit-table th { text-align: left; color: var(--gray); padding-bottom: 10px; border-bottom: 1px solid #eee; }
         .profit-table td { padding: 12px 0; border-bottom: 1px solid #f9f9f9; vertical-align: middle; }
-        .val-up { color: var(--up); font-weight: bold; }
-        .val-down { color: var(--down); font-weight: bold; }
         .auth-links { margin-top: 20px; display: flex; justify-content: center; gap: 20px; font-size: 14px; color: var(--primary); }
         .auth-links span { cursor: pointer; text-decoration: underline; }
     </style>
@@ -88,7 +86,9 @@
                         <select id="trade-type" style="flex:0.5;"><option value="buy">매수</option><option value="sell">매도</option></select>
                         <select id="trade-currency" style="flex:0.5;"><option value="KRW">₩ (원화)</option><option value="USD">$ (미국)</option></select>
                     </div>
-                    <input type="text" id="stock-name" class="input-group" placeholder="종목명" oninput="detectCurrency(this)">
+                    <input type="text" id="stock-name" class="input-group" 
+                           placeholder="종목명 (미국주식: Ticker / 한국주식: 한글)" 
+                           oninput="detectCurrency(this)">
                     <div class="input-row">
                         <input type="text" id="stock-qty" oninput="formatNumber(this)" placeholder="수량">
                         <input type="text" id="stock-price" oninput="formatNumber(this)" placeholder="단가">
@@ -109,13 +109,15 @@
                     
                     <div style="display:flex; justify-content: space-around; border-top: 1px solid rgba(255,255,255,0.2); padding-top:15px; gap: 5px;">
                         <div style="flex:1;">
-                            <small style="opacity:0.8;">매수원금</small>
+                            <small style="opacity:0.8;">매수원금 (보유기준)</small>
                             <div id="p-detail-buy-krw" style="font-size:13px; font-weight:bold;">₩ 0</div>
+                            <div id="p-detail-buy-usd" style="font-size:13px; font-weight:bold;">$ 0.00</div>
                         </div>
                         <div style="width:1px; background:rgba(255,255,255,0.2);"></div>
                         <div style="flex:1;">
-                            <small style="opacity:0.8;">잔여현금</small>
+                            <small style="opacity:0.8;">잔여현금 (보유기준)</small>
                             <div id="p-detail-cash-krw" style="font-size:13px; font-weight:bold;">₩ 0</div>
+                            <div id="p-detail-cash-usd" style="font-size:13px; font-weight:bold;">$ 0.00</div>
                         </div>
                     </div>
                 </div>
@@ -123,7 +125,7 @@
                     <table class="profit-table">
                         <thead>
                             <tr>
-                                <th>종목/수량</th>
+                                <th>종목</th>
                                 <th>평단/종가</th>
                                 <th style="text-align:right;">평가액/수익률</th>
                             </tr>
@@ -151,20 +153,166 @@
         firebase.initializeApp(firebaseConfig);
         const auth = firebase.auth(); const db = firebase.firestore();
         let myChart = null; const EX_RATE = 1350.5;
+
         const stockAlias = { "엔비디아": "NVDA", "로켓랩": "RKLL", "레드와이어": "RDW", "애플": "AAPL", "테슬라": "TSLA", "삼성": "삼성전자" };
         const usStockKorean = ["엔비디아", "로켓랩", "레드와이어", "테슬라", "애플", "구글", "마이크로소프트"];
 
-        function getStandardName(name) { const upperName = name.trim().toUpperCase(); return stockAlias[upperName] || upperName; }
+        function getStandardName(name) {
+            const upperName = name.trim().toUpperCase();
+            return stockAlias[upperName] || upperName;
+        }
+
         function detectCurrency(el) {
-            const val = el.value.trim(); const curSelect = document.getElementById('trade-currency');
+            const val = el.value.trim();
+            const curSelect = document.getElementById('trade-currency');
             if(!val) return;
-            if (usStockKorean.includes(val) || /[a-zA-Z]/.test(val)) curSelect.value = "USD";
-            else if (/[ㄱ-ㅎ|ㅏ-ㅣ|가-힣]/.test(val)) curSelect.value = "KRW";
+            const isKorean = /[ㄱ-ㅎ|ㅏ-ㅣ|가-힣]/.test(val);
+            const isUsException = usStockKorean.includes(val);
+            if (isUsException) curSelect.value = "USD";
+            else if (isKorean) curSelect.value = "KRW";
+            else if (/[a-zA-Z]/.test(val)) curSelect.value = "USD";
         }
 
         function updateUI(trades) {
             let cashKRW = 0; let cashUSD = 0; let stockBuyKRW = 0; let stockBuyUSD = 0;
             let stocks = {}; let logHtml = ""; let homeRecentHtml = "";
 
-            trades.forEach((t) => {
-                const isFund = t.type === '
+            // 정렬: 날짜순 (가장 최근 가격을 찾기 위해)
+            const sortedTrades = [...trades].sort((a,b) => a.date.seconds - b.date.seconds);
+
+            sortedTrades.forEach((t) => {
+                const isFund = t.type === 'fund';
+                const cur = t.currency || 'KRW';
+                if(isFund) {
+                    if(cur === 'KRW') cashKRW += (t.direction === 'in' ? 1 : -1) * t.amount;
+                    else cashUSD += (t.direction === 'in' ? 1 : -1) * t.amount;
+                } else {
+                    const name = getStandardName(t.stockName);
+                    // lastPrice를 저장하여 최종가를 추적
+                    if(!stocks[name]) stocks[name] = { qty: 0, costKRW: 0, costUSD: 0, cur: cur, lastPrice: 0 };
+                    stocks[name].lastPrice = t.price; 
+
+                    const tradeAmt = t.quantity * t.price;
+                    if(t.type === 'buy') {
+                        stocks[name].qty += t.quantity;
+                        if(cur === 'KRW') { stocks[name].costKRW += tradeAmt; stockBuyKRW += tradeAmt; cashKRW -= tradeAmt; }
+                        else { stocks[name].costUSD += tradeAmt; stockBuyUSD += tradeAmt; cashUSD -= tradeAmt; }
+                    } else {
+                        const ratio = t.quantity / (stocks[name].qty + t.quantity);
+                        stocks[name].qty -= t.quantity;
+                        if(cur === 'KRW') { stockBuyKRW -= (stocks[name].costKRW * ratio); cashKRW += tradeAmt; }
+                        else { stockBuyUSD -= (stocks[name].costUSD * ratio); cashUSD += tradeAmt; }
+                    }
+                    if(homeRecentHtml.split('border-bottom').length <= 5) {
+                        const curSym = cur === 'USD' ? '$' : '₩';
+                        homeRecentHtml += `<div style="padding:12px 0; border-bottom:1px solid #f0f0f0; font-size:13px; display:flex; justify-content:space-between;">
+                            <span><b>${name}</b> ${t.quantity}주 ${t.type==='buy'?'매수':'매도'}</span>
+                            <span style="color:var(--primary); font-weight:bold;">${curSym}${t.price.toLocaleString()}</span>
+                        </div>`;
+                    }
+                }
+                const label = isFund ? (t.direction==='in'?'입금':'출금') : (t.type==='buy'?'매수':'매도');
+                logHtml += `<div style="display:flex; justify-content:space-between; padding:12px 0; border-bottom:1px solid #f0f0f0;">
+                    <div><span class="badge ${t.type==='buy'||t.direction==='in'?'in':'out'}">${label}</span> <b>${isFund?cur+' '+t.amount.toLocaleString():t.stockName+' '+t.quantity+'주'}</b></div>
+                    <div style="font-size:12px; color:var(--gray);">${t.date ? t.date.toDate().toLocaleDateString() : '-'}</div>
+                </div>`;
+            });
+
+            const totalStockKRW = Object.values(stocks).reduce((acc, s) => acc + s.costKRW + (s.costUSD * EX_RATE), 0);
+            const totalEvalKRW = cashKRW + (cashUSD * EX_RATE) + totalStockKRW;
+
+            document.getElementById('h-total-krw').innerText = `₩ ${Math.floor(totalEvalKRW).toLocaleString()}`;
+            document.getElementById('h-total-usd').innerText = `$ ${(totalEvalKRW / EX_RATE).toFixed(2)}`;
+            document.getElementById('p-total-eval').innerText = `₩ ${Math.floor(totalEvalKRW).toLocaleString()}`;
+            document.getElementById('p-total-eval-usd').innerText = `$ ${(totalEvalKRW / EX_RATE).toFixed(2)}`;
+            document.getElementById('p-detail-buy-krw').innerText = `₩ ${Math.floor(stockBuyKRW).toLocaleString()}`;
+            document.getElementById('p-detail-buy-usd').innerText = `$ ${stockBuyUSD.toLocaleString(undefined, {minimumFractionDigits: 2})}`;
+            document.getElementById('p-detail-cash-krw').innerText = `₩ ${Math.floor(cashKRW).toLocaleString()}`;
+            document.getElementById('p-detail-cash-usd').innerText = `$ ${cashUSD.toLocaleString(undefined, {minimumFractionDigits: 2})}`;
+
+            let stockHtml = "";
+            for(let n in stocks) { 
+                if(stocks[n].qty > 0) { 
+                    const s = stocks[n];
+                    const isUSD = s.cur === 'USD';
+                    const curSym = isUSD ? '$' : '₩';
+                    const avgPrice = (s.costKRW + s.costUSD) / s.qty;
+                    const evalAmt = s.qty * s.lastPrice;
+                    const profitRate = ((s.lastPrice - avgPrice) / avgPrice) * 100;
+                    const rateColor = profitRate >= 0 ? "var(--up)" : "var(--down)";
+
+                    stockHtml += `<tr>
+                        <td><b>${n}</b><br><small>${s.qty}주 (${s.cur})</small></td>
+                        <td>
+                            <div style="font-size:11px; color:var(--gray);">평단:${curSym}${avgPrice.toLocaleString(undefined,{maximumFractionDigits:isUSD?2:0})}</div>
+                            <div style="font-weight:bold;">종가:${curSym}${s.lastPrice.toLocaleString()}</div>
+                        </td>
+                        <td style="text-align:right;">
+                            <div style="font-weight:bold; color:var(--primary);">${curSym}${evalAmt.toLocaleString()}</div>
+                            <div style="font-size:11px; color:${rateColor}; font-weight:bold;">${profitRate >= 0 ? '▲' : '▼'}${Math.abs(profitRate).toFixed(2)}%</div>
+                        </td>
+                    </tr>`; 
+                } 
+            }
+            document.getElementById('stock-profit-table-body').innerHTML = stockHtml || "<tr><td colspan='3' style='text-align:center;'>내역 없음</td></tr>";
+            document.getElementById('log-history-list').innerHTML = logHtml || "내역 없음";
+            document.getElementById('home-recent-list').innerHTML = homeRecentHtml || "내역 없음";
+            updateChart(stockBuyKRW, cashKRW, stockBuyUSD * EX_RATE, cashUSD * EX_RATE);
+        }
+
+        function updateChart(sK, cK, sU, cU) {
+            const ctx = document.getElementById('assetChart').getContext('2d');
+            if(myChart) myChart.destroy();
+            myChart = new Chart(ctx, { type: 'doughnut', data: { labels: ['한국주식', '원화현금', '미국주식', '달러현금'], datasets: [{ data: [sK, cK, sU, cU], backgroundColor: ['#f1c40f', '#1266df', '#d93025', '#00a400'] }] }, options: { responsive: true, maintainAspectRatio: false, plugins: { legend: { position: 'bottom' } } } });
+        }
+
+        async function handleAuth(type) {
+            const email = document.getElementById('email').value;
+            const pw = document.getElementById('pw1').value;
+            const isRemember = document.getElementById('remember-me').checked;
+            if(!email || !pw) return alert("입력하세요.");
+            try {
+                if(type === 'login') await auth.signInWithEmailAndPassword(email, pw);
+                else await auth.createUserWithEmailAndPassword(email, pw);
+                if(isRemember) { localStorage.setItem('savedEmail', email); localStorage.setItem('savedPw', pw); }
+                else { localStorage.removeItem('savedEmail'); localStorage.removeItem('savedPw'); }
+                document.getElementById('auth-section').style.display = 'none';
+                document.getElementById('main-section').style.display = 'block';
+                subscribeData();
+            } catch(e) { alert(e.message); }
+        }
+
+        window.onload = () => {
+            const savedEmail = localStorage.getItem('savedEmail');
+            const savedPw = localStorage.getItem('savedPw');
+            if(savedEmail) { document.getElementById('email').value = savedEmail; document.getElementById('remember-me').checked = true; }
+            if(savedPw) document.getElementById('pw1').value = savedPw;
+        };
+
+        function subscribeData() { db.collection("trades").where("uid", "==", auth.currentUser.uid).orderBy("date", "desc").onSnapshot(snap => { let trades = []; snap.forEach(doc => trades.push({id: doc.id, ...doc.data()})); updateUI(trades); }); }
+        
+        async function saveTrade() {
+            const name = document.getElementById('stock-name').value.trim();
+            const qty = Number(document.getElementById('stock-qty').value.replace(/,/g, ""));
+            const price = Number(document.getElementById('stock-price').value.replace(/,/g, ""));
+            const cur = document.getElementById('trade-currency').value;
+            if(!name || !qty || !price) return alert("항목을 채워주세요.");
+            await db.collection("trades").add({ uid: auth.currentUser.uid, type: document.getElementById('trade-type').value, currency: cur, stockName: name, quantity: qty, price: price, date: new Date() });
+            document.getElementById('stock-name').value = ""; document.getElementById('stock-qty').value = ""; document.getElementById('stock-price').value = "";
+        }
+
+        async function saveFund(dir) {
+            const amt = Number(document.getElementById('fund-amount').value.replace(/,/g, ""));
+            const cur = document.getElementById('fund-currency').value;
+            if(!amt) return;
+            await db.collection("trades").add({ uid: auth.currentUser.uid, type: 'fund', direction: dir, currency: cur, amount: amt, date: new Date() });
+            document.getElementById('fund-amount').value = "";
+        }
+
+        async function clearAllData() { if(!confirm("초기화하시겠습니까?")) return; const snap = await db.collection("trades").where("uid", "==", auth.currentUser.uid).get(); const batch = db.batch(); snap.forEach(doc => batch.delete(doc.ref)); await batch.commit(); }
+        function changeTab(pageId, el) { document.querySelectorAll('.page').forEach(p => p.classList.remove('active-page')); document.getElementById('page-' + pageId).classList.add('active-page'); document.querySelectorAll('.nav-item').forEach(btn => btn.classList.remove('active')); el.classList.add('active'); }
+        function formatNumber(el) { let val = el.value.replace(/[^0-9.]/g, ""); if(val) el.value = Number(val).toLocaleString(); }
+        async function resetPassword() { const email = document.getElementById('email').value; if(!email) return alert("이메일 입력 필요"); await auth.sendPasswordResetEmail(email); alert("발송완료"); }
+    </script>
+</body>
+</html>
