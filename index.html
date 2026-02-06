@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-    <title>BlissHo 자산관리 v1.0.8</title>
+    <title>BlissHo 자산관리 v1.0.9</title>
     <script src="https://www.gstatic.com/firebasejs/10.7.1/firebase-app-compat.js"></script>
     <script src="https://www.gstatic.com/firebasejs/10.7.1/firebase-auth-compat.js"></script>
     <script src="https://www.gstatic.com/firebasejs/10.7.1/firebase-firestore-compat.js"></script>
@@ -40,7 +40,10 @@
             <h1 style="color: var(--primary); margin-bottom: 30px;">BlissHo Asset</h1>
             <input type="email" id="email" class="input-group" placeholder="이메일">
             <input type="password" id="pw1" class="input-group" placeholder="비밀번호">
-            <div style="text-align: left; margin-bottom: 15px;"><input type="checkbox" id="remember-me"> <label for="remember-me">아이디 저장</label></div>
+            <div style="text-align: left; margin-bottom: 15px;">
+                <input type="checkbox" id="remember-me"> 
+                <label for="remember-me" style="font-size: 14px; color: var(--gray);">아이디 및 비밀번호 저장</label>
+            </div>
             <button class="btn" onclick="handleAuth('login')">로그인</button>
             <div class="auth-links"><span onclick="handleAuth('signup')">계정 생성</span><span onclick="resetPassword()">비밀번호 찾기</span></div>
         </div>
@@ -126,7 +129,6 @@
         const auth = firebase.auth(); const db = firebase.firestore();
         let myChart = null; const EX_RATE = 1350.5;
 
-        // ★ 자산 4분할 업데이트 로직
         function updateUI(trades) {
             let cashKRW = 0; let cashUSD = 0;
             let stockKRW = 0; let stockUSD = 0;
@@ -157,8 +159,14 @@
                         if(cur === 'KRW') { stockKRW -= avg * t.quantity; cashKRW += t.quantity * t.price; }
                         else { stockUSD -= avg * t.quantity; cashUSD += t.quantity * t.price; }
                     }
+                    
+                    // 홈 화면 최근 내역 (가격 추가)
                     if(homeRecentHtml.split('</div>').length <= 5) {
-                        homeRecentHtml += `<div style="padding:10px 0; border-bottom:1px solid #f0f0f0; font-size:13px;"><b>${name}</b> ${t.quantity}주 ${t.type==='buy'?'매수':'매도'} (${cur})</div>`;
+                        const symbol = cur === 'USD' ? '$' : '₩';
+                        homeRecentHtml += `<div style="padding:12px 0; border-bottom:1px solid #f0f0f0; font-size:13px;">
+                            <b>${name}</b> ${t.quantity}주 ${t.type==='buy'?'매수':'매도'} 
+                            <span style="color:var(--gray); float:right;">${symbol}${t.price.toLocaleString()}</span>
+                        </div>`;
                     }
                 }
                 const label = isFund ? (t.direction==='in'?'입금':'출금') : (t.type==='buy'?'매수':'매도');
@@ -168,9 +176,8 @@
                 </div>`;
             });
 
-            // 원화 환산 총액 계산
             const totalCash = cashKRW + (cashUSD * EX_RATE);
-            const totalStock = stockKRW + stockUSD; // stockUSD는 이미 위에서 EX_RATE가 곱해진 상태
+            const totalStock = stockKRW + stockUSD;
             const totalEval = totalCash + totalStock;
 
             document.getElementById('h-total-krw').innerText = `₩ ${Math.floor(totalEval).toLocaleString()}`;
@@ -182,7 +189,6 @@
             document.getElementById('log-history-list').innerHTML = logHtml || "내역 없음";
             document.getElementById('home-recent-list').innerHTML = homeRecentHtml || "내역 없음";
 
-            // 수익 테이블
             let stockHtml = "";
             for(let n in stocks) {
                 if(stocks[n].qty > 0) {
@@ -191,7 +197,6 @@
             }
             document.getElementById('stock-profit-table-body').innerHTML = stockHtml || "<tr><td colspan='3' style='text-align:center;'>내역 없음</td></tr>";
 
-            // ★ 차트 업데이트 (4개 카테고리)
             updateChart(stockKRW, cashKRW, stockUSD, cashUSD * EX_RATE);
         }
 
@@ -227,17 +232,26 @@
             });
         }
 
-        // 인증 및 아이디 저장
         async function handleAuth(type) {
             const email = document.getElementById('email').value;
             const pw = document.getElementById('pw1').value;
             const isRemember = document.getElementById('remember-me').checked;
+            
             if(!email || !pw) return alert("입력하세요.");
+            
             try {
                 if(type === 'login') await auth.signInWithEmailAndPassword(email, pw);
                 else await auth.createUserWithEmailAndPassword(email, pw);
-                if(isRemember) localStorage.setItem('savedEmail', email);
-                else localStorage.removeItem('savedEmail');
+                
+                // 아이디 및 비밀번호 저장 로직
+                if(isRemember) {
+                    localStorage.setItem('savedEmail', email);
+                    localStorage.setItem('savedPw', pw);
+                } else {
+                    localStorage.removeItem('savedEmail');
+                    localStorage.removeItem('savedPw');
+                }
+                
                 document.getElementById('auth-section').style.display = 'none';
                 document.getElementById('main-section').style.display = 'block';
                 subscribeData();
@@ -246,13 +260,16 @@
 
         window.onload = () => {
             const savedEmail = localStorage.getItem('savedEmail');
+            const savedPw = localStorage.getItem('savedPw');
             if(savedEmail) {
                 document.getElementById('email').value = savedEmail;
                 document.getElementById('remember-me').checked = true;
             }
+            if(savedPw) {
+                document.getElementById('pw1').value = savedPw;
+            }
         };
 
-        // 기타 고정 함수
         function subscribeData() {
             db.collection("trades").where("uid", "==", auth.currentUser.uid).orderBy("date", "desc").onSnapshot(snap => {
                 let trades = []; snap.forEach(doc => trades.push({id: doc.id, ...doc.data()}));
