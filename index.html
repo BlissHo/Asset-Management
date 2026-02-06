@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-    <title>BlissHo 자산관리 v1.0.13</title>
+    <title>BlissHo 자산관리 v1.0.12</title>
     <script src="https://www.gstatic.com/firebasejs/10.7.1/firebase-app-compat.js"></script>
     <script src="https://www.gstatic.com/firebasejs/10.7.1/firebase-auth-compat.js"></script>
     <script src="https://www.gstatic.com/firebasejs/10.7.1/firebase-firestore-compat.js"></script>
@@ -26,11 +26,9 @@
         .badge { padding: 4px 10px; border-radius: 6px; font-size: 12px; color: white; font-weight: bold; }
         .in { background: var(--green); } .out { background: var(--up); }
         .history-list { max-height: 350px; overflow-y: auto; }
-        .profit-table { width: 100%; border-collapse: collapse; font-size: 12px; }
+        .profit-table { width: 100%; border-collapse: collapse; font-size: 13px; }
         .profit-table th { text-align: left; color: var(--gray); padding-bottom: 10px; border-bottom: 1px solid #eee; }
         .profit-table td { padding: 12px 0; border-bottom: 1px solid #f9f9f9; vertical-align: middle; }
-        .val-up { color: var(--up); font-weight: bold; }
-        .val-down { color: var(--down); font-weight: bold; }
         .auth-links { margin-top: 20px; display: flex; justify-content: center; gap: 20px; font-size: 14px; color: var(--primary); }
         .auth-links span { cursor: pointer; text-decoration: underline; }
     </style>
@@ -47,7 +45,7 @@
             </div>
             <button class="btn" onclick="handleAuth('login')">로그인</button>
             <div class="auth-links"><span onclick="handleAuth('signup')">계정 생성</span><span onclick="resetPassword()">비밀번호 찾기</span></div>
-            <div style="margin-top: 25px; font-size: 11px; color: #ccc;">version 1.0.13.</div>
+            <div style="margin-top: 25px; font-size: 11px; color: #ccc;">version 1.0.12.</div>
         </div>
     </div>
 
@@ -88,7 +86,9 @@
                         <select id="trade-type" style="flex:0.5;"><option value="buy">매수</option><option value="sell">매도</option></select>
                         <select id="trade-currency" style="flex:0.5;"><option value="KRW">₩ (원화)</option><option value="USD">$ (미국)</option></select>
                     </div>
-                    <input type="text" id="stock-name" class="input-group" placeholder="종목명 (미국주식: Ticker / 한국주식: 한글)" oninput="detectCurrency(this)">
+                    <input type="text" id="stock-name" class="input-group" 
+                           placeholder="종목명 (미국주식: Ticker / 한국주식: 한글)" 
+                           oninput="detectCurrency(this)">
                     <div class="input-row">
                         <input type="text" id="stock-qty" oninput="formatNumber(this)" placeholder="수량">
                         <input type="text" id="stock-price" oninput="formatNumber(this)" placeholder="단가">
@@ -123,13 +123,7 @@
                 </div>
                 <div class="card">
                     <table class="profit-table">
-                        <thead>
-                            <tr>
-                                <th>종목/수량</th>
-                                <th>평단/종가</th>
-                                <th style="text-align:right;">평가액/수익률</th>
-                            </tr>
-                        </thead>
+                        <thead><tr><th>종목</th><th>평단</th><th style="text-align:right;">평가액</th></tr></thead>
                         <tbody id="stock-profit-table-body"></tbody>
                     </table>
                 </div>
@@ -154,7 +148,11 @@
         const auth = firebase.auth(); const db = firebase.firestore();
         let myChart = null; const EX_RATE = 1350.5;
 
-        const stockAlias = { "엔비디아": "NVDA", "로켓랩": "RKLL", "레드와이어": "RDW", "애플": "AAPL", "테슬라": "TSLA", "삼성": "삼성전자" };
+        // 종목명 별칭 매핑 (동일 종목 인식용)
+        const stockAlias = {
+            "엔비디아": "NVDA", "로켓랩": "RKLL", "레드와이어": "RDW", "애플": "AAPL", "테슬라": "TSLA", "삼성": "삼성전자"
+        };
+        // 한글로 입력해도 미국 주식으로 인식할 예외 리스트
         const usStockKorean = ["엔비디아", "로켓랩", "레드와이어", "테슬라", "애플", "구글", "마이크로소프트"];
 
         function getStandardName(name) {
@@ -162,12 +160,22 @@
             return stockAlias[upperName] || upperName;
         }
 
+        // ★ v1.0.12 핵심: 통화 자동 감지 로직
         function detectCurrency(el) {
             const val = el.value.trim();
             const curSelect = document.getElementById('trade-currency');
             if(!val) return;
-            if (usStockKorean.includes(val) || /[a-zA-Z]/.test(val)) curSelect.value = "USD";
-            else if (/[ㄱ-ㅎ|ㅏ-ㅣ|가-힣]/.test(val)) curSelect.value = "KRW";
+
+            const isKorean = /[ㄱ-ㅎ|ㅏ-ㅣ|가-힣]/.test(val);
+            const isUsException = usStockKorean.includes(val);
+
+            if (isUsException) {
+                curSelect.value = "USD";
+            } else if (isKorean) {
+                curSelect.value = "KRW";
+            } else if (/[a-zA-Z]/.test(val)) {
+                curSelect.value = "USD";
+            }
         }
 
         function updateUI(trades) {
@@ -182,7 +190,7 @@
                     else cashUSD += (t.direction === 'in' ? 1 : -1) * t.amount;
                 } else {
                     const name = getStandardName(t.stockName);
-                    if(!stocks[name]) stocks[name] = { qty: 0, costKRW: 0, costUSD: 0, cur: cur, lastPrice: 0 };
+                    if(!stocks[name]) stocks[name] = { qty: 0, costKRW: 0, costUSD: 0, cur: cur };
                     const tradeAmt = t.quantity * t.price;
                     if(t.type === 'buy') {
                         stocks[name].qty += t.quantity;
@@ -194,8 +202,6 @@
                         if(cur === 'KRW') { stockBuyKRW -= (stocks[name].costKRW * ratio); cashKRW += tradeAmt; }
                         else { stockBuyUSD -= (stocks[name].costUSD * ratio); cashUSD += tradeAmt; }
                     }
-                    stocks[name].lastPrice = t.price; // 마지막 입력가를 종가 대용으로 사용
-                    
                     if(homeRecentHtml.split('border-bottom').length <= 5) {
                         const curSym = cur === 'USD' ? '$' : '₩';
                         homeRecentHtml += `<div style="padding:12px 0; border-bottom:1px solid #f0f0f0; font-size:13px; display:flex; justify-content:space-between;">
@@ -227,25 +233,11 @@
             for(let n in stocks) { 
                 if(stocks[n].qty > 0) { 
                     const isUSD = stocks[n].cur === 'USD';
-                    const avgPrice = (stocks[n].costKRW + stocks[n].costUSD) / stocks[n].qty;
-                    const profitRate = ((stocks[n].lastPrice - avgPrice) / avgPrice) * 100;
-                    const evalAmt = stocks[n].qty * stocks[n].lastPrice;
-                    const curSym = isUSD ? '$' : '₩';
-                    
-                    const rateClass = profitRate >= 0 ? "val-up" : "val-down";
-                    const rateSign = profitRate >= 0 ? "▲" : "▼";
-
-                    stockHtml += `<tr>
-                        <td><b>${n}</b><br><small style="color:var(--gray);">${stocks[n].qty}주</small></td>
-                        <td>
-                            <div style="font-size:11px; color:var(--gray);">평단:${curSym}${avgPrice.toLocaleString(undefined,{maximumFractionDigits:1})}</div>
-                            <div style="font-weight:bold;">종가:${curSym}${stocks[n].lastPrice.toLocaleString()}</div>
-                        </td>
-                        <td style="text-align:right;">
-                            <div style="font-weight:bold; color:var(--primary);">${curSym}${evalAmt.toLocaleString()}</div>
-                            <div class="${rateClass}" style="font-size:11px;">${rateSign}${Math.abs(profitRate).toFixed(2)}%</div>
-                        </td>
-                    </tr>`; 
+                    const avgPriceKRW = (stocks[n].costKRW + (stocks[n].costUSD * EX_RATE)) / stocks[n].qty;
+                    const avgPriceUSD = avgPriceKRW / EX_RATE;
+                    const evalKRW = stocks[n].costKRW + (stocks[n].costUSD * EX_RATE);
+                    const evalUSD = evalKRW / EX_RATE;
+                    stockHtml += `<tr><td><b>${n}</b><br><small>${stocks[n].qty}주 (${stocks[n].cur})</small></td><td>${isUSD ? `<div style="font-weight:bold;">$${avgPriceUSD.toFixed(2)}</div><div style="font-size:11px; color:var(--gray);">₩${Math.floor(avgPriceKRW).toLocaleString()}</div>` : `<div style="font-weight:bold;">₩${Math.floor(avgPriceKRW).toLocaleString()}</div><div style="font-size:11px; color:var(--gray);">$${avgPriceUSD.toFixed(2)}</div>`}</td><td style="text-align:right;">${isUSD ? `<div style="font-weight:bold; color:var(--primary);">$${evalUSD.toLocaleString(undefined,{maximumFractionDigits:2})}</div><div style="font-size:11px; color:var(--gray);">₩${Math.floor(evalKRW).toLocaleString()}</div>` : `<div style="font-weight:bold; color:var(--primary);">₩${Math.floor(evalKRW).toLocaleString()}</div><div style="font-size:11px; color:var(--gray);">$${evalUSD.toFixed(2)}</div>`}</td></tr>`; 
                 } 
             }
             document.getElementById('stock-profit-table-body').innerHTML = stockHtml || "<tr><td colspan='3' style='text-align:center;'>내역 없음</td></tr>";
@@ -303,4 +295,7 @@
         async function clearAllData() { if(!confirm("초기화하시겠습니까?")) return; const snap = await db.collection("trades").where("uid", "==", auth.currentUser.uid).get(); const batch = db.batch(); snap.forEach(doc => batch.delete(doc.ref)); await batch.commit(); }
         function changeTab(pageId, el) { document.querySelectorAll('.page').forEach(p => p.classList.remove('active-page')); document.getElementById('page-' + pageId).classList.add('active-page'); document.querySelectorAll('.nav-item').forEach(btn => btn.classList.remove('active')); el.classList.add('active'); }
         function formatNumber(el) { let val = el.value.replace(/[^0-9.]/g, ""); if(val) el.value = Number(val).toLocaleString(); }
-        async function resetPassword() { const email = document.getElementById('email').value; if(!email
+        async function resetPassword() { const email = document.getElementById('email').value; if(!email) return alert("이메일 입력 필요"); await auth.sendPasswordResetEmail(email); alert("발송완료"); }
+    </script>
+</body>
+</html>
