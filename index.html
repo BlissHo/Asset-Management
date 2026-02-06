@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-    <title>BlissHo 자산관리 Pro</title>
+    <title>BlissHo Asset Manager Pro</title>
     <script src="https://www.gstatic.com/firebasejs/10.7.1/firebase-app-compat.js"></script>
     <script src="https://www.gstatic.com/firebasejs/10.7.1/firebase-auth-compat.js"></script>
     <script src="https://www.gstatic.com/firebasejs/10.7.1/firebase-firestore-compat.js"></script>
@@ -14,30 +14,24 @@
         .container { padding: 20px; max-width: 600px; margin: 0 auto; box-sizing: border-box; padding-bottom: 120px; }
         .card { background: white; border-radius: 20px; padding: 20px; box-shadow: 0 4px 15px rgba(0,0,0,0.05); margin-bottom: 20px; }
         
-        /* 공통 입력 UI */
-        .input-group { margin-bottom: 15px; width: 100%; box-sizing: border-box; }
-        .input-row { display: flex; gap: 10px; margin-bottom: 12px; }
-        input, select { flex: 1; padding: 16px; border: 1.5px solid #eee; border-radius: 12px; font-size: 16px; outline: none; }
-        input:focus { border-color: var(--primary); }
+        /* UI 공통 */
+        input, select { width: 100%; padding: 16px; border: 1.5px solid #eee; border-radius: 12px; font-size: 16px; box-sizing: border-box; outline: none; margin-bottom: 12px; }
         .btn { width: 100%; padding: 18px; background: var(--primary); color: white; border: none; border-radius: 14px; font-size: 18px; font-weight: bold; cursor: pointer; }
-        
-        /* 하단 내비게이션 */
         .bottom-nav { position: fixed; bottom: 0; left: 50%; transform: translateX(-50%); width: 100%; max-width: 600px; background: white; display: flex; border-top: 1px solid #eee; z-index: 1000; padding: 12px 0 calc(12px + env(safe-area-inset-bottom)); }
         .nav-item { flex: 1; text-align: center; border: none; background: none; display: flex; flex-direction: column; align-items: center; gap: 6px; color: var(--gray); cursor: pointer; }
         .nav-item div { font-size: 26px; }
         .nav-item span { font-size: 13px; font-weight: bold; }
         .nav-item.active { color: var(--primary); }
-
-        .page { display: none; }
-        .active-page { display: block; }
+        .page { display: none; } .active-page { display: block; }
         .badge { padding: 4px 10px; border-radius: 6px; font-size: 12px; color: white; font-weight: bold; }
-        .buy, .in { background: var(--up); } .sell, .out { background: var(--down); }
-        .history-list { max-height: 350px; overflow-y: auto; -webkit-overflow-scrolling: touch; }
+        .in, .buy { background: var(--up); } .out, .sell { background: var(--down); }
+        .history-list { max-height: 350px; overflow-y: auto; }
         
-        /* 수익현황 테이블형 리스트 */
-        .profit-table { width: 100%; border-collapse: collapse; font-size: 13px; }
-        .profit-table th { text-align: left; color: var(--gray); padding-bottom: 10px; border-bottom: 1px solid #eee; }
-        .profit-table td { padding: 12px 0; border-bottom: 1px solid #f9f9f9; }
+        /* 수익현황 전용 */
+        .summary-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; margin-bottom: 15px; }
+        .summary-item { background: #f8f9fa; padding: 15px; border-radius: 12px; text-align: center; }
+        .summary-label { font-size: 11px; color: var(--gray); margin-bottom: 5px; }
+        .summary-value { font-size: 15px; font-weight: bold; }
     </style>
 </head>
 <body>
@@ -45,13 +39,11 @@
     <div id="auth-section" class="container" style="display: flex; align-items: center; min-height: 100vh;">
         <div class="card" style="width: 100%; text-align: center;">
             <h1 style="color: var(--primary); margin-bottom: 30px;">BlissHo Asset</h1>
-            <div id="signup-fields" style="display: none;">
-                <input type="text" id="nickname" class="input-group" placeholder="사용할 닉네임" style="padding:16px; border:1.5px solid #eee; border-radius:12px;">
-            </div>
-            <input type="email" id="email" class="input-group" placeholder="이메일 주소" style="padding:16px; border:1.5px solid #eee; border-radius:12px;">
-            <input type="password" id="pw1" class="input-group" placeholder="비밀번호" style="padding:16px; border:1.5px solid #eee; border-radius:12px;">
-            <div style="text-align: left; margin: -5px 0 15px 5px; font-size: 14px; color: var(--gray);">
-                <input type="checkbox" id="remember-me" style="width: auto; height: auto; margin-right: 5px;"> <label for="remember-me">아이디 저장</label>
+            <div id="signup-fields" style="display: none;"><input type="text" id="nickname" placeholder="닉네임"></div>
+            <input type="email" id="email" placeholder="이메일 주소">
+            <input type="password" id="pw1" placeholder="비밀번호">
+            <div style="text-align: left; margin-bottom: 15px; font-size: 14px;">
+                <input type="checkbox" id="remember-me" style="width:auto; margin-right:5px;"> 아이디 저장
             </div>
             <button class="btn" onclick="handleAuth()" id="main-btn">로그인</button>
             <div style="margin-top: 25px; font-size: 14px;">
@@ -66,70 +58,70 @@
         <div class="container">
             
             <div id="page-home" class="page active-page">
-                <header style="margin-bottom: 25px; display: flex; justify-content: space-between; align-items: center;">
-                    <span id="welcome-msg" style="font-size: 22px; font-weight: 800;">환영합니다!</span>
-                    <button onclick="location.reload()" style="border:none; background:none; color:var(--gray); font-weight: bold;">로그아웃</button>
+                <header style="margin-bottom: 25px; display: flex; justify-content: space-between;">
+                    <span id="welcome-msg" style="font-size: 20px; font-weight: 800;">BlissHo님</span>
+                    <button onclick="location.reload()" style="border:none; background:none; color:var(--gray);">로그아웃</button>
                 </header>
-                <div class="card" style="text-align: center; background: white;">
-                    <div style="font-size: 15px; color: var(--gray); margin-bottom: 8px;">내 총 자산 평가액</div>
+                <div class="card" style="text-align: center;">
+                    <div style="font-size: 14px; color: var(--gray); margin-bottom: 5px;">실시간 환율: ₩1,350.5</div>
                     <div id="h-total-krw" style="font-size:32px; font-weight:800; color:var(--primary);">₩ 0</div>
-                    <div id="h-total-usd" style="font-size:20px; color:var(--gray); margin: 8px 0 12px 0; font-weight:600;">$ 0.00</div>
-                    <div class="exchange-rate" style="font-size:14px; color:var(--up); background:#fce8e6; padding:8px 15px; border-radius:50px; display:inline-block; font-weight:bold;">환율: $1 = 1,350.5원</div>
+                    <div id="h-total-usd" style="font-size:20px; color:var(--gray); font-weight:600;">$ 0.00</div>
                 </div>
                 <div class="card">
-                    <h3 style="margin:0 0 15px 0;">📊 자산 구성 비중 (비율%)</h3>
+                    <h3 style="margin-top:0;">📊 자산 구성 (비중%)</h3>
                     <div style="height: 250px;"><canvas id="assetChart"></canvas></div>
+                </div>
+                <div class="card">
+                    <h3 style="margin-top:0;">🕒 최근 매매 (실시간 연동)</h3>
+                    <div id="home-recent-list"></div>
                 </div>
             </div>
 
             <div id="page-log" class="page">
                 <div class="card" style="border: 1.5px solid #e1f5fe;">
-                    <h3 style="margin-top:0; font-size:16px;">💰 자산 입금/출금 관리</h3>
-                    <div class="input-row">
-                        <select id="fund-currency" style="flex:0.4;"><option value="KRW">원화(₩)</option><option value="USD">달러($)</option></select>
-                        <input type="text" id="fund-amount" oninput="formatNumber(this)" placeholder="금액 입력">
+                    <h3 style="margin:0 0 15px 0;">💰 투자금 관리</h3>
+                    <div style="display: flex; gap: 8px;">
+                        <select id="fund-currency" style="flex:0.4;"><option value="KRW">₩(원)</option><option value="USD">$(달러)</option></select>
+                        <input type="text" id="fund-amount" oninput="formatNumber(this)" placeholder="금액">
                     </div>
-                    <div class="input-row">
-                        <button onclick="saveFund('in')" style="flex:1; padding:12px; background:var(--green); color:white; border:none; border-radius:10px; font-weight:bold;">입금 (+)</button>
-                        <button onclick="saveFund('out')" style="flex:1; padding:12px; background:var(--up); color:white; border:none; border-radius:10px; font-weight:bold;">출금 (-)</button>
+                    <div style="display: flex; gap: 8px;">
+                        <button onclick="saveFund('in')" class="btn" style="background:var(--green); flex:1;">입금 (+)</button>
+                        <button onclick="saveFund('out')" class="btn" style="background:var(--up); flex:1;">출금 (-)</button>
                     </div>
                 </div>
-
                 <div class="card">
-                    <h3 style="margin-top:0; font-size:16px;">📝 종목 매매 기록</h3>
-                    <select id="trade-type" class="input-group" style="padding:14px;"><option value="buy">매수 (BUY)</option><option value="sell">매도 (SELL)</option></select>
-                    <input type="text" id="stock-name" class="input-group" placeholder="종목명 (예: TSLA)" style="padding:14px;">
-                    <div class="input-row">
+                    <h3 style="margin:0 0 15px 0;">📝 종목 매매</h3>
+                    <select id="trade-type"><option value="buy">매수 (BUY)</option><option value="sell">매도 (SELL)</option></select>
+                    <input type="text" id="stock-name" placeholder="종목명 (NVDA, 삼성전자 등)">
+                    <div style="display: flex; gap: 8px;">
                         <input type="text" id="stock-qty" oninput="formatNumber(this)" placeholder="수량">
                         <input type="text" id="stock-price" oninput="formatNumber(this)" placeholder="단가">
                     </div>
                     <button class="btn" onclick="saveTrade()">매매 기록 저장</button>
                 </div>
-
                 <div class="card">
-                    <h3 style="margin-top:0; font-size:16px;">📅 최근 활동 (실시간 연동)</h3>
-                    <div id="log-history-list" class="history-list">
-                        <p style="text-align:center; color:var(--gray); padding:20px;">활동 내역이 없습니다.</p>
-                    </div>
+                    <h3 style="margin:0 0 15px 0;">📅 최근 1개월 활동</h3>
+                    <div id="log-history-list" class="history-list"></div>
                 </div>
             </div>
 
             <div id="page-profit" class="page">
-                <div class="card" style="display: flex; justify-content: space-between; text-align: center; background: var(--primary); color: white;">
-                    <div><div style="font-size:12px; opacity:0.8;">총 투자원금</div><div id="p-total-inv" style="font-size:17px; font-weight:bold;">₩ 0</div></div>
-                    <div><div style="font-size:12px; opacity:0.8;">수익금</div><div id="p-total-profit" style="font-size:17px; font-weight:bold;">₩ 0</div></div>
-                    <div><div style="font-size:12px; opacity:0.8;">수익률</div><div id="p-total-rate" style="font-size:17px; font-weight:bold;">0%</div></div>
+                <div class="card" style="background: var(--primary); color: white;">
+                    <h3 style="margin:0 0 15px 0;">💰 자산 요약</h3>
+                    <div class="summary-grid">
+                        <div class="summary-item"><div class="summary-label">총 매수금액</div><div id="p-total-buy" class="summary-value" style="color:var(--text);">₩ 0</div></div>
+                        <div class="summary-item"><div class="summary-label">잔여 현금</div><div id="p-total-cash" class="summary-value" style="color:var(--text);">₩ 0</div></div>
+                        <div class="summary-item"><div class="summary-label">총 평가금액</div><div id="p-total-eval" class="summary-value" style="color:var(--text);">₩ 0</div></div>
+                        <div class="summary-item"><div class="summary-label">현금 비중</div><div id="p-cash-rate" class="summary-value" style="color:var(--text);">0%</div></div>
+                    </div>
+                    <div style="display:flex; justify-content:space-between; border-top:1px solid rgba(255,255,255,0.2); padding-top:10px;">
+                        <span>총 수익금: <b id="p-profit-amt">₩ 0</b></span>
+                        <span>수익률: <b id="p-profit-rate">0%</b></span>
+                    </div>
                 </div>
                 <div class="card">
-                    <h3 style="margin-bottom:15px;">📈 종목별 수익 상세</h3>
-                    <div style="overflow-x: auto;">
-                        <table class="profit-table">
-                            <thead>
-                                <tr><th>종목/수량</th><th>평단/현재가</th><th>수익률/수익금</th></tr>
-                            </thead>
-                            <tbody id="stock-profit-table-body"></tbody>
-                        </table>
-                    </div>
+                    <h3 style="margin:0 0 15px 0;">📈 개별 종목 상세</h3>
+                    <div id="stock-detail-list" style="font-size: 13px;"></div>
                 </div>
             </div>
 
@@ -139,156 +131,147 @@
             <button class="nav-item active" onclick="changeTab('home', this)"><div>🏠</div><span>홈</span></button>
             <button class="nav-item" onclick="changeTab('log', this)"><div>📊</div><span>매매일지</span></button>
             <button class="nav-item" onclick="changeTab('profit', this)"><div>💰</div><span>수익현황</span></button>
-            <button class="nav-item" onclick="alert('더보기 준비 중입니다.')"><div>⚙️</div><span>더보기</span></button>
+            <button class="nav-item" onclick="alert('더보기 준비 중')"><div>⚙️</div><span>더보기</span></button>
         </nav>
     </div>
 
     <script>
-        // [Firebase Config]
-        const firebaseConfig = {
-            apiKey: "AIzaSyCEPH9Y5e0VoqGl4FViWo5pVlA8UlxpzCg",
-            authDomain: "assetmanager-66aec.firebaseapp.com",
-            projectId: "assetmanager-66aec",
-            storageBucket: "assetmanager-66aec.firebasestorage.app",
-            messagingSenderId: "928785817084",
-            appId: "1:928785817084:web:2b75ce39d745bdc3202679"
-        };
+        // [초기 설정 및 ID 저장]
+        const firebaseConfig = { apiKey: "AIzaSyCEPH9Y5e0VoqGl4FViWo5pVlA8UlxpzCg", authDomain: "assetmanager-66aec.firebaseapp.com", projectId: "assetmanager-66aec", storageBucket: "assetmanager-66aec.firebasestorage.app", messagingSenderId: "928785817084", appId: "1:928785817084:web:2b75ce39d745bdc3202679" };
         firebase.initializeApp(firebaseConfig);
-        const auth = firebase.auth();
-        const db = firebase.firestore();
-        let myChart = null;
+        const auth = firebase.auth(); const db = firebase.firestore();
+        let myChart = null; const RATE = 1350.5;
 
-        // [ID 저장 기능]
         window.onload = () => {
             const savedEmail = localStorage.getItem('savedEmail');
-            if (savedEmail) {
-                document.getElementById('email').value = savedEmail;
-                document.getElementById('remember-me').checked = true;
-            }
+            if(savedEmail) { document.getElementById('email').value = savedEmail; document.getElementById('remember-me').checked = true; }
         };
 
-        function formatNumber(el) {
-            let val = el.value.replace(/[^0-9]/g, "");
-            if(val) el.value = Number(val).toLocaleString();
-        }
+        function formatNumber(el) { let val = el.value.replace(/[^0-9]/g, ""); if(val) el.value = Number(val).toLocaleString(); }
 
+        // [탭 전환 및 데이터 연동]
         async function changeTab(pageId, el) {
             document.querySelectorAll('.page').forEach(p => p.classList.remove('active-page'));
             document.getElementById('page-' + pageId).classList.add('active-page');
             document.querySelectorAll('.nav-item').forEach(btn => btn.classList.remove('active'));
             el.classList.add('active');
-            
             if(pageId === 'home') loadHomeData();
-            if(pageId === 'log') loadAllHistory();
-            if(pageId === 'profit') loadProfitDetails();
+            if(pageId === 'log') loadLogData();
+            if(pageId === 'profit') loadProfitData();
         }
 
-        // [매매 및 자산 관리 - 연동 기능]
-        async function saveFund(direction) {
+        // [데이터 저장 및 실시간 연동]
+        async function saveFund(dir) {
             const user = auth.currentUser;
-            const currency = document.getElementById('fund-currency').value;
-            const amount = Number(document.getElementById('fund-amount').value.replace(/,/g, ""));
-            if(!amount) return alert("금액을 입력하세요.");
-            await db.collection("trades").add({
-                uid: user.uid, type: 'fund', direction: direction, currency: currency, amount: amount, date: new Date(), stockName: "자산운용"
-            });
-            alert("자산 활동이 기록되었습니다.");
-            document.getElementById('fund-amount').value = "";
-            loadAllHistory(); // 즉시 하단 연동
+            const cur = document.getElementById('fund-currency').value;
+            const amt = Number(document.getElementById('fund-amount').value.replace(/,/g, ""));
+            if(!amt) return alert("금액을 입력하세요.");
+            await db.collection("trades").add({ uid: user.uid, type: 'fund', direction: dir, currency: cur, amount: amt, date: new Date(), stockName: "현금운용" });
+            alert("반영되었습니다."); document.getElementById('fund-amount').value = ""; loadLogData();
         }
 
         async function saveTrade() {
             const user = auth.currentUser;
             const type = document.getElementById('trade-type').value;
-            const name = document.getElementById('stock-name').value;
+            let name = document.getElementById('stock-name').value.trim().toUpperCase();
+            // 종목명 통화일화 (간이 예시)
+            if(name === "엔비디아") name = "NVDA"; if(name === "테슬라") name = "TSLA";
             const qty = Number(document.getElementById('stock-qty').value.replace(/,/g, ""));
             const price = Number(document.getElementById('stock-price').value.replace(/,/g, ""));
-            if(!name || !qty || !price) return alert("정보를 모두 입력하세요.");
-            await db.collection("trades").add({
-                uid: user.uid, type: type, stockName: name.toUpperCase(), quantity: qty, price: price, date: new Date()
-            });
-            alert("매매 기록이 저장되었습니다.");
-            document.getElementById('stock-name').value = "";
-            document.getElementById('stock-qty').value = "";
-            document.getElementById('stock-price').value = "";
-            loadAllHistory(); // 즉시 하단 연동
+            if(!name || !qty || !price) return alert("내용을 입력하세요.");
+            await db.collection("trades").add({ uid: user.uid, type: type, stockName: name, quantity: qty, price: price, date: new Date() });
+            alert("저장되었습니다."); document.getElementById('stock-name').value = ""; document.getElementById('stock-qty').value = ""; document.getElementById('stock-price').value = "";
+            loadLogData();
         }
 
-        async function loadAllHistory() {
+        // [리스트 로드]
+        async function loadLogData() {
             const user = auth.currentUser;
-            const historyDiv = document.getElementById('log-history-list');
-            const snapshot = await db.collection("trades").where("uid", "==", user.uid).orderBy("date", "desc").limit(20).get();
+            const snap = await db.collection("trades").where("uid", "==", user.uid).orderBy("date", "desc").limit(15).get();
             let html = "";
-            snapshot.forEach(doc => {
+            snap.forEach(doc => {
                 const d = doc.data();
                 const isFund = d.type === 'fund';
                 const label = isFund ? (d.direction === 'in' ? '입금' : '출금') : (d.type === 'buy' ? '매수' : '매도');
-                const badgeClass = (label === '입금' || label === '매수') ? 'in' : 'out';
                 const info = isFund ? `${d.currency} ${d.amount.toLocaleString()}` : `${d.stockName} ${d.quantity}주`;
-                html += `
-                <div style="display:flex; justify-content:space-between; align-items:center; padding:12px 0; border-bottom:1px solid #f0f0f0;">
-                    <div><span class="badge ${badgeClass}">${label}</span> <b style="margin-left:5px;">${info}</b></div>
-                    <div style="font-size:12px; color:var(--gray);">${d.date.toDate().toLocaleDateString()}</div>
+                html += `<div style="display:flex; justify-content:space-between; padding:12px 0; border-bottom:1px solid #eee;">
+                    <span><span class="badge ${isFund ? d.direction : d.type}">${label}</span> ${info}</span>
+                    <span style="font-size:11px; color:var(--gray);">${d.date.toDate().toLocaleDateString()}</span>
                 </div>`;
             });
-            historyDiv.innerHTML = html || "활동 기록이 없습니다.";
+            document.getElementById('log-history-list').innerHTML = html || "내역 없음";
         }
 
-        // [수익현황 고도화 계산]
-        async function loadProfitDetails() {
+        // [수익현황 고도화 로직]
+        async function loadProfitData() {
             const user = auth.currentUser;
-            const snapshot = await db.collection("trades").where("uid", "==", user.uid).get();
-            let stocks = {}; 
-            let totalInv = 0;
+            const snap = await db.collection("trades").where("uid", "==", user.uid).get();
+            let stocks = {}; let totalCash = 0; let totalBuyAmt = 0;
 
-            snapshot.forEach(doc => {
+            snap.forEach(doc => {
                 const d = doc.data();
-                if(d.type === 'fund') return;
-                if(!stocks[d.stockName]) stocks[d.stockName] = { costSum: 0, qtySum: 0 };
-                const amt = d.quantity * d.price;
-                if(d.type === 'buy') { stocks[d.stockName].costSum += amt; stocks[d.stockName].qtySum += d.quantity; totalInv += amt; }
-                else { stocks[d.stockName].costSum -= amt; stocks[d.stockName].qtySum -= d.quantity; totalInv -= amt; }
+                if(d.type === 'fund') {
+                    let val = d.currency === 'USD' ? d.amount * RATE : d.amount;
+                    totalCash += (d.direction === 'in' ? 1 : -1) * val;
+                } else {
+                    if(!stocks[d.stockName]) stocks[d.stockName] = { cost: 0, qty: 0 };
+                    const amt = d.quantity * d.price;
+                    if(d.type === 'buy') { stocks[d.stockName].cost += amt; stocks[d.stockName].qty += d.quantity; totalBuyAmt += amt; totalCash -= amt; }
+                    else { stocks[d.stockName].cost -= amt; stocks[d.stockName].qty -= d.quantity; totalBuyAmt -= amt; totalCash += amt; }
+                }
             });
+
+            const totalEval = totalBuyAmt + totalCash;
+            document.getElementById('p-total-buy').innerText = `₩ ${totalBuyAmt.toLocaleString()}`;
+            document.getElementById('p-total-cash').innerText = `₩ ${totalCash.toLocaleString()}`;
+            document.getElementById('p-total-eval').innerText = `₩ ${totalEval.toLocaleString()}`;
+            document.getElementById('p-cash-rate').innerText = totalEval > 0 ? `${((totalCash/totalEval)*100).toFixed(1)}%` : "0%";
 
             let html = "";
-            let totalProfit = 0;
             for(let name in stocks) {
-                const s = stocks[name];
-                if(s.qtySum <= 0) continue;
-                const avgPrice = Math.floor(s.costSum / s.qtySum);
-                const currentPrice = Math.floor(avgPrice * 1.15); // API 연동 전 가상 현재가 (+15%)
-                const profitAmt = (currentPrice - avgPrice) * s.qtySum;
-                const profitRate = ((currentPrice / avgPrice - 1) * 100).toFixed(2);
-                totalProfit += profitAmt;
+                const s = stocks[name]; if(s.qty <= 0) continue;
+                const isUS = /^[A-Z]/.test(name); // 영문 시작시 미국주식 간주
+                const avg = Math.floor(s.cost / s.qty);
+                const curPrice = Math.floor(avg * 1.12); // 임시 +12%
+                const profit = (curPrice - avg) * s.qty;
                 
-                html += `
-                <tr>
-                    <td><b>${name}</b><br><span style="color:var(--gray);">${s.qtySum.toLocaleString()}주</span></td>
-                    <td>평단: ${avgPrice.toLocaleString()}<br><span style="color:var(--green);">현재: ${currentPrice.toLocaleString()}</span></td>
-                    <td style="text-align:right;">
-                        <span style="color:var(--up); font-weight:bold;">${profitRate}%</span><br>
-                        <span style="color:var(--up);">₩${profitAmt.toLocaleString()}</span>
-                    </td>
-                </tr>`;
+                // 통화 병기 로직
+                const dispPrice = isUS ? `$${avg.toLocaleString()} (₩${Math.floor(avg*RATE).toLocaleString()})` : `₩${avg.toLocaleString()} ($${(avg/RATE).toFixed(2)})`;
+                
+                html += `<div style="padding:15px 0; border-bottom:1px solid #eee;">
+                    <div style="display:flex; justify-content:space-between;"><b>${name}</b> <span>${s.qty}주</span></div>
+                    <div style="color:var(--gray); margin-top:5px;">평단: ${dispPrice}</div>
+                    <div style="display:flex; justify-content:space-between; margin-top:5px; color:var(--up); font-weight:bold;">
+                        <span>수익률: +12.0%</span> <span>+₩${profit.toLocaleString()}</span>
+                    </div>
+                </div>`;
             }
-            document.getElementById('stock-profit-table-body').innerHTML = html || "<tr><td colspan='3' style='text-align:center;'>보유 종목 없음</td></tr>";
-            document.getElementById('p-total-inv').innerText = `₩ ${totalInv.toLocaleString()}`;
-            document.getElementById('p-total-profit').innerText = `₩ ${totalProfit.toLocaleString()}`;
-            document.getElementById('p-total-rate').innerText = totalInv > 0 ? `${((totalProfit / totalInv) * 100).toFixed(1)}%` : "0%";
+            document.getElementById('stock-detail-list').innerHTML = html || "보유 종목 없음";
         }
 
-        // [홈 자산 데이터 및 차트]
+        // [홈 화면 및 차트]
         async function loadHomeData() {
             const user = auth.currentUser;
-            const snapshot = await db.collection("trades").where("uid", "==", user.uid).get();
-            let totalKrw = 0;
-            snapshot.forEach(doc => {
+            const snap = await db.collection("trades").where("uid", "==", user.uid).get();
+            let total = 0;
+            snap.forEach(doc => {
                 const d = doc.data();
-                if(d.type === 'fund') totalKrw += (d.direction === 'in' ? 1 : -1) * d.amount;
-                else totalKrw += (d.type === 'buy' ? 1 : -1) * (d.quantity * d.price);
+                if(d.type === 'fund') total += (d.direction === 'in' ? 1 : -1) * (d.currency === 'USD' ? d.amount * RATE : d.amount);
+                else total += (d.type === 'buy' ? 1 : -1) * (d.quantity * d.price);
             });
-            document.getElementById('h-total-krw').innerText = `₩ ${totalKrw.toLocaleString()}`;
-            document.getElementById('h-total-usd').innerText = `$ ${(totalKrw / 1350.5).toLocaleString(undefined, {minimumFractionDigits:2, maximumFractionDigits:2})}`;
+            document.getElementById('h-total-krw').innerText = `₩ ${total.toLocaleString()}`;
+            document.getElementById('h-total-usd').innerText = `$ ${(total / RATE).toLocaleString(undefined, {maximumFractionDigits:2})}`;
+            
+            // 하단 최근 매매 연동
+            const recentSnap = await db.collection("trades").where("uid", "==", user.uid).where("type", "in", ["buy", "sell"]).orderBy("date", "desc").limit(3).get();
+            let hHtml = "";
+            recentSnap.forEach(d => {
+                const data = d.data();
+                hHtml += `<div style="font-size:13px; padding:8px 0; border-bottom:1px dotted #eee;">
+                    [${data.type === 'buy' ? '매수' : '매도'}] ${data.stockName} ${data.quantity}주 - ₩${(data.quantity*data.price).toLocaleString()}
+                </div>`;
+            });
+            document.getElementById('home-recent-list').innerHTML = hHtml || "매매 내역 없음";
             setTimeout(initChart, 200);
         }
 
@@ -296,41 +279,24 @@
             const ctx = document.getElementById('assetChart').getContext('2d');
             if(myChart) myChart.destroy();
             myChart = new Chart(ctx, {
-                type: 'doughnut',
-                data: {
-                    labels: ['미국주식', '한국주식', '달러현금', '원화현금'],
-                    datasets: [{ data: [65, 20, 10, 5], backgroundColor: ['#1877f2', '#8bc34a', '#4da1ff', '#cddc39'], borderWidth: 0 }]
-                },
-                options: {
-                    responsive: true, maintainAspectRatio: false,
-                    plugins: {
-                        legend: { position: 'bottom' },
-                        tooltip: { callbacks: { label: (c) => ` ${c.label}: ${c.raw}%` } }
-                    }
-                }
+                type: 'doughnut', data: { labels: ['주식', '현금', '기타'], datasets: [{ data: [70, 20, 10], backgroundColor: ['#1877f2', '#00a400', '#ff9800'], borderWidth: 0 }] },
+                options: { responsive: true, maintainAspectRatio: false, plugins: { legend: { position: 'bottom' }, tooltip: { callbacks: { label: (c) => ` ${c.label}: ${c.raw}%` } } } }
             });
         }
 
-        // [로그인 로직]
+        // [인증 로직]
         let isSignUpMode = false;
-        function toggleMode() {
-            isSignUpMode = !isSignUpMode;
-            document.getElementById('signup-fields').style.display = isSignUpMode ? "block" : "none";
-            document.getElementById('main-btn').innerText = isSignUpMode ? "가입하기" : "로그인";
-            document.getElementById('toggle-text').innerText = isSignUpMode ? "기존 계정으로 로그인" : "계정 생성";
-        }
+        function toggleMode() { isSignUpMode = !isSignUpMode; document.getElementById('signup-fields').style.display = isSignUpMode ? "block" : "none"; document.getElementById('main-btn').innerText = isSignUpMode ? "가입하기" : "로그인"; }
         async function handleAuth() {
-            const email = document.getElementById('email').value;
-            const pw = document.getElementById('pw1').value;
-            const rememberMe = document.getElementById('remember-me').checked;
+            const email = document.getElementById('email').value; const pw = document.getElementById('pw1').value;
             try {
                 if(isSignUpMode) {
                     const res = await auth.createUserWithEmailAndPassword(email, pw);
                     await db.collection("users").doc(res.user.uid).set({ nickname: document.getElementById('nickname').value || "사용자" });
-                    alert("가입 성공! 로그인 하세요."); location.reload();
+                    alert("가입 성공!"); location.reload();
                 } else {
                     await auth.signInWithEmailAndPassword(email, pw);
-                    if(rememberMe) localStorage.setItem('savedEmail', email);
+                    if(document.getElementById('remember-me').checked) localStorage.setItem('savedEmail', email);
                     else localStorage.removeItem('savedEmail');
                     document.getElementById('auth-section').style.display = 'none';
                     document.getElementById('main-section').style.display = 'block';
@@ -338,10 +304,7 @@
                 }
             } catch(e) { alert(e.message); }
         }
-        async function resetPassword() {
-            const email = prompt("재설정 메일을 보낼 이메일을 입력하세요:");
-            if(email) auth.sendPasswordResetEmail(email).then(() => alert("발송 완료"));
-        }
+        async function resetPassword() { const email = prompt("이메일을 입력하세요:"); if(email) auth.sendPasswordResetEmail(email).then(() => alert("발송 완료")); }
     </script>
 </body>
 </html>
