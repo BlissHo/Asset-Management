@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-    <title>BlissHo 자산관리 v1.0.10</title>
+    <title>BlissHo 자산관리 v1.0.11</title>
     <script src="https://www.gstatic.com/firebasejs/10.7.1/firebase-app-compat.js"></script>
     <script src="https://www.gstatic.com/firebasejs/10.7.1/firebase-auth-compat.js"></script>
     <script src="https://www.gstatic.com/firebasejs/10.7.1/firebase-firestore-compat.js"></script>
@@ -28,7 +28,7 @@
         .history-list { max-height: 350px; overflow-y: auto; }
         .profit-table { width: 100%; border-collapse: collapse; font-size: 13px; }
         .profit-table th { text-align: left; color: var(--gray); padding-bottom: 10px; border-bottom: 1px solid #eee; }
-        .profit-table td { padding: 12px 0; border-bottom: 1px solid #f9f9f9; }
+        .profit-table td { padding: 12px 0; border-bottom: 1px solid #f9f9f9; vertical-align: middle; }
         .auth-links { margin-top: 20px; display: flex; justify-content: center; gap: 20px; font-size: 14px; color: var(--primary); }
         .auth-links span { cursor: pointer; text-decoration: underline; }
     </style>
@@ -45,7 +45,7 @@
             </div>
             <button class="btn" onclick="handleAuth('login')">로그인</button>
             <div class="auth-links"><span onclick="handleAuth('signup')">계정 생성</span><span onclick="resetPassword()">비밀번호 찾기</span></div>
-            <div style="margin-top: 25px; font-size: 11px; color: #ccc;">version 1.0.10.</div>
+            <div style="margin-top: 25px; font-size: 11px; color: #ccc;">version 1.0.11.</div>
         </div>
     </div>
 
@@ -86,7 +86,7 @@
                         <select id="trade-type" style="flex:0.5;"><option value="buy">매수</option><option value="sell">매도</option></select>
                         <select id="trade-currency" style="flex:0.5;"><option value="KRW">₩ (원화)</option><option value="USD">$ (미국)</option></select>
                     </div>
-                    <input type="text" id="stock-name" class="input-group" placeholder="종목명">
+                    <input type="text" id="stock-name" class="input-group" placeholder="종목명 (예: 엔비디아 또는 NVDA)">
                     <div class="input-row">
                         <input type="text" id="stock-qty" oninput="formatNumber(this)" placeholder="수량">
                         <input type="text" id="stock-price" oninput="formatNumber(this)" placeholder="단가">
@@ -121,7 +121,7 @@
                 </div>
                 <div class="card">
                     <table class="profit-table">
-                        <thead><tr><th>종목</th><th>평단(환산)</th><th style="text-align:right;">평가액</th></tr></thead>
+                        <thead><tr><th>종목</th><th>평단</th><th style="text-align:right;">평가액</th></tr></thead>
                         <tbody id="stock-profit-table-body"></tbody>
                     </table>
                 </div>
@@ -146,9 +146,24 @@
         const auth = firebase.auth(); const db = firebase.firestore();
         let myChart = null; const EX_RATE = 1350.5;
 
+        // 1. 종목명 별칭 매핑 (동일 종목 인식용)
+        const stockAlias = {
+            "엔비디아": "NVDA", "엔비": "NVDA", "NVIDIA": "NVDA",
+            "애플": "AAPL", "APPLE": "AAPL",
+            "테슬라": "TSLA", "TESLA": "TSLA",
+            "삼성전자": "삼성전자", "삼성": "삼성전자",
+            "마이크로소프트": "MSFT", "마솟": "MSFT", "MICROSOFT": "MSFT",
+            "구글": "GOOGL", "알파벳": "GOOGL", "GOOGLE": "GOOGL"
+        };
+
+        function getStandardName(name) {
+            const upperName = name.trim().toUpperCase();
+            return stockAlias[upperName] || upperName;
+        }
+
         function updateUI(trades) {
             let cashKRW = 0; let cashUSD = 0; 
-            let stockBuyKRW = 0; let stockBuyUSD = 0; // 매수원금 분리
+            let stockBuyKRW = 0; let stockBuyUSD = 0;
             let stocks = {}; let logHtml = ""; let homeRecentHtml = "";
 
             trades.forEach((t) => {
@@ -159,25 +174,20 @@
                     if(cur === 'KRW') cashKRW += (t.direction === 'in' ? 1 : -1) * t.amount;
                     else cashUSD += (t.direction === 'in' ? 1 : -1) * t.amount;
                 } else {
-                    const name = t.stockName;
-                    if(!stocks[name]) stocks[name] = { qty: 0, cost: 0, cur: cur };
+                    const name = getStandardName(t.stockName); // 표준 이름 사용
+                    if(!stocks[name]) stocks[name] = { qty: 0, costKRW: 0, costUSD: 0, cur: cur };
                     const tradeAmt = t.quantity * t.price;
                     
                     if(t.type === 'buy') {
                         stocks[name].qty += t.quantity;
-                        // 평단가 계산용 cost는 원화 환산하여 관리
-                        const baseAmt = (cur === 'USD') ? tradeAmt * EX_RATE : tradeAmt;
-                        stocks[name].cost += baseAmt;
-
-                        if(cur === 'KRW') { stockBuyKRW += tradeAmt; cashKRW -= tradeAmt; }
-                        else { stockBuyUSD += tradeAmt; cashUSD -= tradeAmt; }
+                        if(cur === 'KRW') { stocks[name].costKRW += tradeAmt; stockBuyKRW += tradeAmt; cashKRW -= tradeAmt; }
+                        else { stocks[name].costUSD += tradeAmt; stockBuyUSD += tradeAmt; cashUSD -= tradeAmt; }
                     } else {
-                        const avgCostPerStock = stocks[name].cost / stocks[name].qty;
+                        // 평균단가 기반 차감 (원화/달러 각각 비중 계산)
+                        const ratio = t.quantity / (stocks[name].qty + t.quantity);
                         stocks[name].qty -= t.quantity;
-                        stocks[name].cost -= avgCostPerStock * t.quantity;
-
-                        if(cur === 'KRW') { stockBuyKRW -= (avgCostPerStock * t.quantity / EX_RATE); cashKRW += tradeAmt; }
-                        else { stockBuyUSD -= (avgCostPerStock * t.quantity / EX_RATE); cashUSD += tradeAmt; }
+                        if(cur === 'KRW') { stockBuyKRW -= (stocks[name].costKRW * ratio); cashKRW += tradeAmt; }
+                        else { stockBuyUSD -= (stocks[name].costUSD * ratio); cashUSD += tradeAmt; }
                     }
                     
                     if(homeRecentHtml.split('border-bottom').length <= 5) {
@@ -195,33 +205,46 @@
                 </div>`;
             });
 
-            // 원화 환산 합계용
-            const totalStockEvalKRW = Object.values(stocks).reduce((acc, s) => acc + (s.qty > 0 ? s.cost : 0), 0);
-            const totalEvalKRW = cashKRW + (cashUSD * EX_RATE) + totalStockEvalKRW;
+            // 환산 합계 계산
+            const totalStockKRW = Object.values(stocks).reduce((acc, s) => acc + s.costKRW + (s.costUSD * EX_RATE), 0);
+            const totalEvalKRW = cashKRW + (cashUSD * EX_RATE) + totalStockKRW;
 
-            // [홈] 반영
             document.getElementById('h-total-krw').innerText = `₩ ${Math.floor(totalEvalKRW).toLocaleString()}`;
             document.getElementById('h-total-usd').innerText = `$ ${(totalEvalKRW / EX_RATE).toFixed(2)}`;
-            
-            // [수익] 상단 요약 수정
             document.getElementById('p-total-eval').innerText = `₩ ${Math.floor(totalEvalKRW).toLocaleString()}`;
             document.getElementById('p-total-eval-usd').innerText = `$ ${(totalEvalKRW / EX_RATE).toFixed(2)}`;
-            
-            // 매수원금 상세 (보유 통화별)
             document.getElementById('p-detail-buy-krw').innerText = `₩ ${Math.floor(stockBuyKRW).toLocaleString()}`;
             document.getElementById('p-detail-buy-usd').innerText = `$ ${stockBuyUSD.toLocaleString(undefined, {minimumFractionDigits: 2})}`;
-            
-            // 잔여현금 상세 (보유 통화별)
             document.getElementById('p-detail-cash-krw').innerText = `₩ ${Math.floor(cashKRW).toLocaleString()}`;
             document.getElementById('p-detail-cash-usd').innerText = `$ ${cashUSD.toLocaleString(undefined, {minimumFractionDigits: 2})}`;
 
             document.getElementById('log-history-list').innerHTML = logHtml || "내역 없음";
             document.getElementById('home-recent-list').innerHTML = homeRecentHtml || "내역 없음";
 
+            // 2. 수익 테이블 - 미국 주식 달러 우선 표기 로직
             let stockHtml = "";
-            for(let n in stocks) { if(stocks[n].qty > 0) { stockHtml += `<tr><td><b>${n}</b><br><small>${stocks[n].qty}주 (${stocks[n].cur})</small></td><td>₩ ${Math.floor(stocks[n].cost/stocks[n].qty).toLocaleString()}</td><td style="text-align:right;">₩ ${Math.floor(stocks[n].cost).toLocaleString()}</td></tr>`; } }
+            for(let n in stocks) { 
+                if(stocks[n].qty > 0) { 
+                    const isUSD = stocks[n].cur === 'USD';
+                    const avgPriceKRW = (stocks[n].costKRW + (stocks[n].costUSD * EX_RATE)) / stocks[n].qty;
+                    const avgPriceUSD = avgPriceKRW / EX_RATE;
+                    const evalKRW = stocks[n].costKRW + (stocks[n].costUSD * EX_RATE);
+                    const evalUSD = evalKRW / EX_RATE;
+
+                    stockHtml += `<tr>
+                        <td><b>${n}</b><br><small>${stocks[n].qty}주 (${stocks[n].cur})</small></td>
+                        <td>
+                            ${isUSD ? `<div style="font-weight:bold;">$${avgPriceUSD.toFixed(2)}</div><div style="font-size:11px; color:var(--gray);">₩${Math.floor(avgPriceKRW).toLocaleString()}</div>` 
+                                    : `<div style="font-weight:bold;">₩${Math.floor(avgPriceKRW).toLocaleString()}</div><div style="font-size:11px; color:var(--gray);">$${avgPriceUSD.toFixed(2)}</div>`}
+                        </td>
+                        <td style="text-align:right;">
+                            ${isUSD ? `<div style="font-weight:bold; color:var(--primary);">$${evalUSD.toLocaleString(undefined,{maximumFractionDigits:2})}</div><div style="font-size:11px; color:var(--gray);">₩${Math.floor(evalKRW).toLocaleString()}</div>`
+                                    : `<div style="font-weight:bold; color:var(--primary);">₩${Math.floor(evalKRW).toLocaleString()}</div><div style="font-size:11px; color:var(--gray);">$${evalUSD.toFixed(2)}</div>`}
+                        </td>
+                    </tr>`; 
+                } 
+            }
             document.getElementById('stock-profit-table-body').innerHTML = stockHtml || "<tr><td colspan='3' style='text-align:center;'>내역 없음</td></tr>";
-            
             updateChart(stockBuyKRW, cashKRW, stockBuyUSD * EX_RATE, cashUSD * EX_RATE);
         }
 
@@ -256,7 +279,7 @@
 
         function subscribeData() { db.collection("trades").where("uid", "==", auth.currentUser.uid).orderBy("date", "desc").onSnapshot(snap => { let trades = []; snap.forEach(doc => trades.push({id: doc.id, ...doc.data()})); updateUI(trades); }); }
         async function saveTrade() {
-            const name = document.getElementById('stock-name').value.trim().toUpperCase();
+            const name = document.getElementById('stock-name').value.trim();
             const qty = Number(document.getElementById('stock-qty').value.replace(/,/g, ""));
             const price = Number(document.getElementById('stock-price').value.replace(/,/g, ""));
             const cur = document.getElementById('trade-currency').value;
@@ -273,7 +296,7 @@
         }
         async function clearAllData() { if(!confirm("초기화하시겠습니까?")) return; const snap = await db.collection("trades").where("uid", "==", auth.currentUser.uid).get(); const batch = db.batch(); snap.forEach(doc => batch.delete(doc.ref)); await batch.commit(); }
         function changeTab(pageId, el) { document.querySelectorAll('.page').forEach(p => p.classList.remove('active-page')); document.getElementById('page-' + pageId).classList.add('active-page'); document.querySelectorAll('.nav-item').forEach(btn => btn.classList.remove('active')); el.classList.add('active'); }
-        function formatNumber(el) { let val = el.value.replace(/[^0-9]/g, ""); if(val) el.value = Number(val).toLocaleString(); }
+        function formatNumber(el) { let val = el.value.replace(/[^0-9.]/g, ""); if(val) el.value = Number(val).toLocaleString(); }
         async function resetPassword() { const email = document.getElementById('email').value; if(!email) return alert("이메일 입력 필요"); await auth.sendPasswordResetEmail(email); alert("발송완료"); }
     </script>
 </body>
