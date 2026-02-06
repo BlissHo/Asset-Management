@@ -13,35 +13,17 @@
         body { font-family: -apple-system, sans-serif; background: var(--bg); color: var(--text); margin: 0; }
         .container { padding: 20px; max-width: 500px; margin: 0 auto; box-sizing: border-box; padding-bottom: 100px; }
         .card { background: white; border-radius: 15px; padding: 20px; box-shadow: 0 2px 10px rgba(0,0,0,0.05); margin-bottom: 20px; }
-        
-        /* 홈 대시보드 스타일 */
         .total-amount { font-size: 24px; font-weight: bold; color: var(--primary); margin-bottom: 4px; }
-        .sub-amount { font-size: 16px; color: var(--gray); margin-bottom: 10px; }
-        .rate-tag { font-size: 12px; color: var(--up); background: #fce8e6; padding: 4px 10px; border-radius: 20px; display: inline-block; }
-
-        /* 페이지 전환 */
         .page { display: none; }
         .active-page { display: block; }
-
-        /* 하단 탭 바 정렬 수정 */
-        .bottom-nav { 
-            position: fixed; bottom: 0; left: 50%; transform: translateX(-50%); 
-            width: 100%; max-width: 500px; background: white; border-top: 1px solid #ddd; 
-            display: flex; z-index: 1000; box-shadow: 0 -2px 10px rgba(0,0,0,0.05);
-        }
-        .nav-item { flex: 1; text-align: center; padding: 12px 0; color: var(--gray); font-size: 11px; cursor: pointer; border: none; background: none; outline: none; }
+        .bottom-nav { position: fixed; bottom: 0; left: 50%; transform: translateX(-50%); width: 100%; max-width: 500px; background: white; border-top: 1px solid #ddd; display: flex; z-index: 1000; }
+        .nav-item { flex: 1; text-align: center; padding: 12px 0; color: var(--gray); font-size: 11px; cursor: pointer; border: none; background: none; }
         .nav-item.active { color: var(--primary); font-weight: bold; }
-        .nav-icon { font-size: 20px; margin-bottom: 3px; }
-
-        /* 입력 폼 */
         .input-group { margin-bottom: 15px; }
         .input-group label { display: block; font-size: 13px; margin-bottom: 5px; color: var(--gray); }
         input { width: 100%; padding: 12px; border: 1px solid #ddd; border-radius: 8px; font-size: 15px; box-sizing: border-box; }
         .btn { width: 100%; padding: 15px; background: var(--primary); color: white; border: none; border-radius: 10px; font-weight: bold; cursor: pointer; }
-        
-        /* 내역 리스트 아이템 */
-        .trade-item { border-bottom: 1px solid #eee; padding: 15px 0; display: flex; justify-content: space-between; align-items: center; }
-        .trade-item:last-child { border-bottom: none; }
+        .del-btn { background:#ff4d4d; color:white; border:none; border-radius:5px; padding:5px 8px; cursor:pointer; font-size:12px; }
     </style>
 </head>
 <body>
@@ -69,19 +51,14 @@
                 <div class="card">
                     <div style="font-size: 14px; color: var(--gray);">총 자산 평가액</div>
                     <div class="total-amount">₩ 124,500,000</div>
-                    <div class="sub-amount">≈ $ 92,051.75</div>
-                    <div class="rate-tag">현재 환율: $1 = 1,352.5원</div>
-                </div>
-                <div class="card">
-                    <div style="font-size: 14px; color: var(--gray); margin-bottom: 10px;">자산 구성 (비중)</div>
-                    <div style="height: 220px;"><canvas id="assetChart"></canvas></div>
+                    <div style="height: 220px; margin-top:20px;"><canvas id="assetChart"></canvas></div>
                 </div>
             </div>
 
             <div id="page-log" class="page">
                 <h3>📝 매매 기록하기</h3>
                 <div class="card">
-                    <div class="input-group"><label>종목명</label><input type="text" id="stock-name" placeholder="예: NVDA, 삼성전자"></div>
+                    <div class="input-group"><label>종목명</label><input type="text" id="stock-name" placeholder="예: 삼성전자"></div>
                     <div class="input-group"><label>수량</label><input type="text" id="stock-qty" oninput="formatNumber(this)" placeholder="0"></div>
                     <div class="input-group"><label>단가</label><input type="text" id="stock-price" oninput="formatNumber(this)" placeholder="0"></div>
                     <button class="btn" onclick="saveData()">데이터베이스 저장</button>
@@ -95,16 +72,15 @@
                     <div id="total-invested" style="font-size: 22px; font-weight: bold;">₩ 0</div>
                 </div>
                 <div class="card">
-                    <div id="trade-list"><p style="text-align:center; color:var(--gray);">내역이 없습니다.</p></div>
+                    <div id="trade-list"><p style="text-align:center; color:var(--gray);">내역을 불러오는 중...</p></div>
                 </div>
             </div>
         </div>
 
         <nav class="bottom-nav">
-            <button class="nav-item active" onclick="changeTab('home', this)"><div class="nav-icon">🏠</div>홈</button>
-            <button class="nav-item" onclick="changeTab('log', this)"><div class="nav-icon">📊</div>일지</button>
-            <button class="nav-item" onclick="changeTab('profit', this)"><div class="nav-icon">💰</div>수익</button>
-            <button class="nav-item" onclick="alert('준비 중입니다')"><div class="nav-icon">⚙️</div>설정</button>
+            <button class="nav-item active" onclick="changeTab('home', this)">🏠홈</button>
+            <button class="nav-item" onclick="changeTab('log', this)">📊일지</button>
+            <button class="nav-item" onclick="changeTab('profit', this)">💰수익</button>
         </nav>
     </div>
 
@@ -150,7 +126,7 @@
                     await res.user.sendEmailVerification();
                     const nick = document.getElementById('nickname').value || "사용자";
                     await db.collection("users").doc(res.user.uid).set({ nickname: nick });
-                    alert("인증 메일을 보냈습니다. 확인 후 로그인하세요!");
+                    alert("인증 메일 확인 후 로그인하세요!");
                     toggleMode();
                 } catch(e) { alert(e.message); }
             } else {
@@ -172,11 +148,11 @@
             const name = document.getElementById('stock-name').value;
             const qty = Number(document.getElementById('stock-qty').value.replace(/,/g, ""));
             const price = Number(document.getElementById('stock-price').value.replace(/,/g, ""));
-            if(!name || !qty || !price) return alert("입력창을 확인하세요");
+            if(!name || !qty || !price) return alert("내용을 입력하세요.");
 
             try {
                 await db.collection("trades").add({ uid: user.uid, stockName: name, quantity: qty, price: price, date: new Date() });
-                alert("성공적으로 저장되었습니다!");
+                alert("저장 성공!");
                 document.getElementById('stock-name').value = "";
                 document.getElementById('stock-qty').value = "";
                 document.getElementById('stock-price').value = "";
@@ -195,14 +171,27 @@
                     const d = doc.data();
                     const sum = d.quantity * d.price;
                     grandTotal += sum;
-                    html += `<div class="trade-item">
-                                <div><strong>${d.stockName}</strong><br><small>${d.quantity}주 x ₩${d.price.toLocaleString()}</small></div>
-                                <div style="text-align:right;"><strong>₩${sum.toLocaleString()}</strong></div>
-                             </div>`;
+                    html += `
+                        <div style="display:flex; justify-content:space-between; align-items:center; border-bottom:1px solid #eee; padding:10px 0;">
+                            <div><strong>${d.stockName}</strong><br><small>${d.quantity}주 x ₩${d.price.toLocaleString()}</small></div>
+                            <div style="text-align:right;">
+                                <strong>₩${sum.toLocaleString()}</strong><br>
+                                <button class="del-btn" onclick="deleteTrade('${doc.id}')">삭제</button>
+                            </div>
+                        </div>`;
                 });
                 listDiv.innerHTML = html || "내역이 없습니다.";
                 totalDiv.innerText = `₩ ${grandTotal.toLocaleString()}`;
             } catch(e) { listDiv.innerHTML = "로딩 실패"; }
+        }
+
+        async function deleteTrade(docId) {
+            if(!confirm("정말 삭제하시겠습니까?")) return;
+            try {
+                await db.collection("trades").doc(docId).delete();
+                alert("삭제되었습니다.");
+                loadTrades();
+            } catch(e) { alert("삭제 실패"); }
         }
 
         function initChart() {
