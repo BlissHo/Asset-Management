@@ -2,191 +2,115 @@
 <html lang="ko">
 <head>
     <meta charset="UTF-8">
-    <title>나의 자산 관리 서비스</title>
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>나만의 자산 관리</title>
+    <script src="https://www.gstatic.com/firebasejs/10.7.1/firebase-app-compat.js"></script>
+    <script src="https://www.gstatic.com/firebasejs/10.7.1/firebase-auth-compat.js"></script>
+    <script src="https://www.gstatic.com/firebasejs/10.7.1/firebase-firestore-compat.js"></script>
     <style>
-        body { font-family: 'Apple SD Gothic Neo', sans-serif; padding: 20px; background-color: #f0f2f5; color: #1c1e21; }
-        .card { background: white; padding: 25px; border-radius: 15px; box-shadow: 0 4px 12px rgba(0,0,0,0.1); max-width: 850px; margin: 0 auto; }
-        h1 { font-size: 1.4rem; margin-top: 0; color: #1877f2; text-align: center; }
-        .rate-box { background: #e7f3ff; padding: 10px; border-radius: 8px; text-align: center; margin-bottom: 20px; font-weight: bold; }
-        
-        .input-group { display: flex; flex-direction: column; gap: 10px; margin-bottom: 20px; align-items: center; }
-        .input-row { display: flex; gap: 10px; }
-        input { padding: 10px; border: 1px solid #ddd; border-radius: 8px; font-size: 1rem; width: 180px; }
-        .btn { padding: 10px 15px; border: none; border-radius: 8px; cursor: pointer; color: white; font-weight: bold; min-width: 60px; }
-        .btn-add { background-color: #42b72a; }
-        .btn-sub { background-color: #fa3e3e; }
-        
-        .summary-row { display: flex; justify-content: space-between; padding: 12px 0; border-bottom: 1px solid #f0f2f5; font-size: 1.1rem; }
-        .value { font-weight: bold; }
-        .usd-value { color: #1877f2; }
-
-        .stock-section { margin-top: 30px; border-top: 2px solid #eee; padding-top: 20px; }
-        table { width: 100%; border-collapse: collapse; margin-top: 15px; font-size: 0.85rem; }
-        th { background: #f8f9fa; padding: 10px; border-bottom: 2px solid #dee2e6; }
-        td { padding: 10px; border-bottom: 1px solid #eee; text-align: center; }
-        .stock-input { width: 70px; padding: 5px; text-align: center; border: 1px solid #ddd; border-radius: 4px; }
-        .plus { color: #d63031; font-weight: bold; }
-        .minus { color: #0984e3; font-weight: bold; }
-        .loading-text { font-size: 0.7rem; color: #f39c12; display: block; }
+        :root { --primary: #1877f2; --bg: #f0f2f5; --card: #ffffff; }
+        body { font-family: -apple-system, sans-serif; background: var(--bg); margin: 0; padding: 0; display: flex; flex-direction: column; min-height: 100vh; }
+        .auth-screen { flex: 1; display: flex; justify-content: center; align-items: center; padding: 20px; }
+        .card { background: var(--card); padding: 30px; border-radius: 20px; box-shadow: 0 4px 15px rgba(0,0,0,0.1); width: 100%; max-width: 400px; text-align: center; }
+        h1 { color: var(--primary); font-size: 1.5rem; margin-bottom: 20px; }
+        input { width: 100%; padding: 14px; margin-bottom: 12px; border: 1px solid #ddd; border-radius: 10px; font-size: 16px; box-sizing: border-box; }
+        .btn { width: 100%; padding: 14px; background: var(--primary); color: white; border: none; border-radius: 10px; font-weight: bold; font-size: 16px; cursor: pointer; }
+        .sub-btn { margin-top: 15px; color: #65676b; font-size: 14px; cursor: pointer; text-decoration: underline; }
+        .hidden { display: none; }
+        /* 탭 바 */
+        .bottom-nav { position: fixed; bottom: 0; width: 100%; background: white; border-top: 1px solid #ddd; display: flex; justify-content: space-around; padding: 10px 0; }
+        .nav-item { font-size: 12px; color: #65676b; text-align: center; cursor: pointer; }
+        .nav-item.active { color: var(--primary); font-weight: bold; }
     </style>
 </head>
 <body>
 
-    <div class="card">
-        <h1>💰 자산 관리 대시보드</h1>
-        <div id="rate-box" class="rate-box">환율 불러오는 중...</div>
-
-        <div class="input-group">
-            <div class="input-row">
-                <input type="text" id="krw-input" placeholder="금액 입력(원)" oninput="formatNumber(this)">
-                <button class="btn btn-add" onclick="updateAsset('KRW', 1)">추가</button>
-                <button class="btn btn-sub" onclick="updateAsset('KRW', -1)">빼기</button>
-            </div>
-            <div class="input-row">
-                <input type="text" id="usd-input" placeholder="금액 입력($)" oninput="formatNumber(this)">
-                <button class="btn btn-add" onclick="updateAsset('USD', 1)">추가</button>
-                <button class="btn btn-sub" onclick="updateAsset('USD', -1)">빼기</button>
-            </div>
-        </div>
-
-        <div class="summary-row">
-            <span>총 자산 (원화)</span>
-            <span class="value"><span id="total-krw">0</span>원</span>
-        </div>
-        <div class="summary-row">
-            <span>총 자산 (달러)</span>
-            <span class="value usd-value"><span id="total-usd">0.00</span>달러</span>
-        </div>
-
-        <p style="font-size: 0.8rem; color: #bcc0c4; margin-top: 15px; text-align: center;">
-            * 1분마다 환율이 자동 갱신됩니다.
-        </p>
-
-        <div class="stock-section">
-            <h2 style="font-size: 1.1rem; margin-bottom: 10px;">📉 주식 자산 상세 (미국 주식 전용)</h2>
-            <table>
-                <thead>
-                    <tr>
-                        <th>국가</th>
-                        <th>티커</th>
-                        <th>종가($)</th>
-                        <th>매수 평단($)</th>
-                        <th>수량</th>
-                        <th>수익률</th>
-                        <th>수익금($)</th>
-                    </tr>
-                </thead>
-                <tbody id="stock-body">
-                    <script>
-                        for(let i=0; i<3; i++) {
-                            document.write(`
-                                <tr>
-                                    <td>미국</td>
-                                    <td><input type="text" class="stock-input ticker-in" placeholder="NVDA" onchange="fetchStockPrice(this)"></td>
-                                    <td><span class="last-price">0.00</span><span class="loading-text"></span></td>
-                                    <td><input type="number" class="stock-input buy-price" placeholder="0" oninput="calculateStock(this)"></td>
-                                    <td><input type="number" class="stock-input qty" placeholder="0" oninput="calculateStock(this)"></td>
-                                    <td class="profit-rate">-</td>
-                                    <td class="profit-amt">-</td>
-                                </tr>
-                            `);
-                        }
-                    </script>
-                </tbody>
-            </table>
+    <div id="auth-section" class="auth-screen">
+        <div class="card">
+            <h1 id="title">자산 관리 시작</h1>
+            <input type="email" id="email" placeholder="이메일 (ID)">
+            <input type="text" id="nickname" class="hidden" placeholder="닉네임 (4자 이상)">
+            <input type="password" id="pw1" placeholder="비밀번호">
+            <input type="password" id="pw2" class="hidden" placeholder="비밀번호 확인">
+            <button class="btn" id="main-btn" onclick="handleAuth()">계정 생성</button>
+            <div class="sub-btn" id="toggle-link" onclick="toggleMode()">이미 계정이 있으신가요? 로그인</div>
+            <div id="find-links" class="sub-btn">ID/PW 찾기</div>
         </div>
     </div>
 
+    <div id="main-section" class="hidden">
+        <div style="padding: 20px; padding-bottom: 80px;">
+            <h2 id="welcome-msg">님, 환영합니다!</h2>
+            <p>데이터 불러오는 중...</p>
+        </div>
+        
+        <nav class="bottom-nav">
+            <div class="nav-item active">🏠<br>홈</div>
+            <div class="nav-item">📝<br>매매일지</div>
+            <div class="nav-item">📈<br>수익내역</div>
+            <div class="nav-item">➕<br>더보기</div>
+        </nav>
+    </div>
+
     <script>
-        let totalKrwValue = 1000000; 
-        let exchangeRate = 1450;
+            const firebaseConfig = {
+            apiKey: "AIzaSyCEPH9Y5e0VoqGl4FViWo5pVlA8UlxpzCg",
+            authDomain: "assetmanager-66aec.firebaseapp.com",
+            projectId: "assetmanager-66aec",
+            storageBucket: "assetmanager-66aec.firebasestorage.app",
+            messagingSenderId: "928785817084",
+            appId: "1:928785817084:web:2b75ce39d745bdc3202679"
+        };
 
-        function formatNumber(obj) {
-            let val = obj.value.replace(/[^0-9.]/g, "");
-            let parts = val.split('.');
-            parts[0] = parts[0].replace(/\B(?=(\d{3})+(?!\d))/g, ",");
-            obj.value = parts.join('.');
+        firebase.initializeApp(firebaseConfig);
+        const auth = firebase.auth();
+        const db = firebase.firestore();
+
+        let isSignUp = true;
+
+        function toggleMode() {
+            isSignUp = !isSignUp;
+            document.getElementById('title').innerText = isSignUp ? "계정 생성" : "로그인";
+            document.getElementById('main-btn').innerText = isSignUp ? "가입하기" : "로그인";
+            document.getElementById('nickname').classList.toggle('hidden', !isSignUp);
+            document.getElementById('pw2').classList.toggle('hidden', !isSignUp);
+            document.getElementById('toggle-link').innerText = isSignUp ? "이미 계정이 있나요? 로그인" : "계정이 없으신가요? 계정 생성";
         }
 
-        async function getExchangeRate() {
-            try {
-                const response = await fetch('https://open.er-api.com/v6/latest/USD');
-                const data = await response.json();
-                exchangeRate = data.rates.KRW;
-                document.getElementById('rate-box').innerHTML = `현재 환율: 1달러 = <b>${exchangeRate.toFixed(2)}원</b>`;
-                updateDisplay();
-            } catch (e) { console.error("환율 로딩 실패"); }
-        }
+        async function handleAuth() {
+            const email = document.getElementById('email').value;
+            const pw = document.getElementById('pw1').value;
+            const nick = document.getElementById('nickname').value;
 
-        function updateAsset(type, direction) {
-            const krwIn = document.getElementById('krw-input');
-            const usdIn = document.getElementById('usd-input');
-            
-            if(type === 'KRW') {
-                const val = parseInt(krwIn.value.replace(/,/g, "")) || 0;
-                totalKrwValue += (val * direction);
-                krwIn.value = "";
+            if (isSignUp) {
+                if (pw !== document.getElementById('pw2').value) return alert("비밀번호가 일치하지 않습니다.");
+                if (nick.length < 4) return alert("닉네임은 4자 이상 입력해주세요.");
+
+                try {
+                    const result = await auth.createUserWithEmailAndPassword(email, pw);
+                    await result.user.sendEmailVerification();
+                    await db.collection("users").doc(result.user.uid).set({ nickname: nick });
+                    alert("인증 이메일을 보냈습니다. 확인 후 로그인해주세요!");
+                    toggleMode();
+                } catch (e) { alert("가입 오류: " + e.message); }
             } else {
-                const val = parseFloat(usdIn.value.replace(/,/g, "")) || 0;
-                totalKrwValue += (val * exchangeRate * direction);
-                usdIn.value = "";
-            }
-            updateDisplay();
-        }
-
-        function updateDisplay() {
-            document.getElementById('total-krw').innerText = Math.round(totalKrwValue).toLocaleString();
-            document.getElementById('total-usd').innerText = (totalKrwValue / exchangeRate).toLocaleString(undefined, {minimumFractionDigits: 2});
-        }
-
-        // 티커 입력 시 실시간 종가 가져오기 (Finnhub 무료 API 샘플 사용)
-        async function fetchStockPrice(el) {
-            const ticker = el.value.toUpperCase();
-            const row = el.closest('tr');
-            const priceEl = row.querySelector('.last-price');
-            const loadingEl = row.querySelector('.loading-text');
-
-            if(!ticker) return;
-
-            loadingEl.innerText = "로딩중...";
-            try {
-                // 주의: 실제 운영 시에는 개인 API 키가 필요합니다. 
-                // 여기서는 연습용으로 야후 파이낸스 체계를 모방한 무료 프록시를 시뮬레이션합니다.
-                const response = await fetch(`https://query1.finance.yahoo.com/v8/finance/chart/${ticker}`);
-                // 웹 브라우저 보안(CORS)으로 인해 직접 호출이 막힐 수 있어, 실패 시 고정 더미 데이터를 제공합니다.
-                if(!response.ok) throw new Error();
-                const data = await response.json();
-                const price = data.chart.result[0].meta.regularMarketPrice;
-                priceEl.innerText = price.toFixed(2);
-            } catch (e) {
-                // API 차단 대비용 시뮬레이션 데이터 (실제 연동을 위해서는 백엔드나 Proxy 필요)
-                const mockPrices = {"NVDA": 145.20, "TSLA": 185.30, "AAPL": 190.10, "MSFT": 410.50};
-                priceEl.innerText = (mockPrices[ticker] || 150.00).toFixed(2);
-            }
-            loadingEl.innerText = "";
-            calculateStock(el);
-        }
-
-        function calculateStock(el) {
-            const row = el.closest('tr');
-            const lastPrice = parseFloat(row.querySelector('.last-price').innerText);
-            const buyPrice = parseFloat(row.querySelector('.buy-price').value);
-            const qty = parseFloat(row.querySelector('.qty').value);
-
-            if (qty > 0) {
-                const rate = ((lastPrice - buyPrice) / buyPrice * 100).toFixed(2);
-                const amt = ((lastPrice - buyPrice) * qty).toFixed(2);
-                const rateEl = row.querySelector('.profit-rate');
-                const amtEl = row.querySelector('.profit-amt');
-
-                rateEl.innerText = rate + "%";
-                amtEl.innerText = "$" + parseFloat(amt).toLocaleString();
-                rateEl.className = "profit-rate " + (rate >= 0 ? "plus" : "more");
-                amtEl.className = "profit-amt " + (amt >= 0 ? "plus" : "minus");
+                try {
+                    const result = await auth.signInWithEmailAndPassword(email, pw);
+                    if (!result.user.emailVerified) return alert("이메일 인증을 완료해주세요!");
+                    showDashboard(result.user.uid);
+                } catch (e) { alert("로그인 실패: " + e.message); }
             }
         }
 
-        getExchangeRate();
+        async function showDashboard(uid) {
+            const userDoc = await db.collection("users").doc(uid).get();
+            document.getElementById('welcome-msg').innerText = `${userDoc.data().nickname}님, 환영합니다!`;
+            document.getElementById('auth-section').classList.add('hidden');
+            document.getElementById('main-section').classList.remove('hidden');
+        }
     </script>
 </body>
 </html>
+
+
+
