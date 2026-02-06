@@ -1,95 +1,211 @@
-// ... (기존 HTML/CSS 동일, <script> 영역의 주요 기능 수정)
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>BlissHo 자산관리 Pro</title>
+    <script src="https://www.gstatic.com/firebasejs/10.7.1/firebase-app-compat.js"></script>
+    <script src="https://www.gstatic.com/firebasejs/10.7.1/firebase-auth-compat.js"></script>
+    <script src="https://www.gstatic.com/firebasejs/10.7.1/firebase-firestore-compat.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    <style>
+        :root { --primary: #1877f2; --bg: #f0f2f5; --text: #1c1e21; --gray: #65676b; --up: #d93025; --down: #1266df; }
+        body { font-family: -apple-system, sans-serif; background: var(--bg); color: var(--text); margin: 0; }
+        .container { padding: 20px; max-width: 500px; margin: 0 auto; box-sizing: border-box; padding-bottom: 100px; }
+        .card { background: white; border-radius: 15px; padding: 20px; box-shadow: 0 2px 10px rgba(0,0,0,0.05); margin-bottom: 20px; }
+        .total-amount { font-size: 24px; font-weight: bold; color: var(--primary); margin-bottom: 4px; }
+        .sub-amount { font-size: 16px; color: var(--gray); margin-bottom: 10px; }
+        .rate-tag { font-size: 12px; color: var(--up); background: #fce8e6; padding: 4px 10px; border-radius: 20px; display: inline-block; }
+        .page { display: none; }
+        .active-page { display: block; }
+        .bottom-nav { position: fixed; bottom: 0; left: 50%; transform: translateX(-50%); width: 100%; max-width: 500px; background: white; border-top: 1px solid #ddd; display: flex; z-index: 1000; }
+        .nav-item { flex: 1; text-align: center; padding: 12px 0; color: var(--gray); font-size: 11px; cursor: pointer; border: none; background: none; outline: none; }
+        .nav-item.active { color: var(--primary); font-weight: bold; }
+        .nav-icon { font-size: 20px; margin-bottom: 3px; }
+        .input-group { margin-bottom: 15px; }
+        .input-group label { display: block; font-size: 13px; margin-bottom: 5px; color: var(--gray); }
+        input, select { width: 100%; padding: 12px; border: 1px solid #ddd; border-radius: 8px; font-size: 15px; box-sizing: border-box; }
+        .btn { width: 100%; padding: 15px; background: var(--primary); color: white; border: none; border-radius: 10px; font-weight: bold; cursor: pointer; }
+        /* 매매 내역 아이템 스타일 */
+        .trade-item { border-bottom: 1px solid #eee; padding: 10px 0; display: flex; justify-content: space-between; align-items: center; }
+        .trade-item:last-child { border-bottom: none; }
+    </style>
+</head>
+<body>
 
-// [1] 데이터 저장 기능 (매매일지)
-async function saveData() {
-    const user = auth.currentUser; // 현재 로그인된 사용자 확인
-    if (!user) return alert("로그인이 필요합니다.");
+    <div id="auth-section" class="container" style="display: flex; align-items: center; min-height: 100vh;">
+        <div class="card" style="width: 100%; text-align: center;">
+            <h1 style="color: var(--primary)">BlissHo 자산관리</h1>
+            <div id="signup-fields" style="display: none;">
+                <input type="text" id="nickname" placeholder="닉네임 (4자 이상)">
+                <input type="password" id="pw2" placeholder="비밀번호 확인">
+            </div>
+            <input type="email" id="email" placeholder="이메일 주소">
+            <input type="password" id="pw1" placeholder="비밀번호">
+            <button class="btn" onclick="handleAuth()" id="main-btn">로그인</button>
+            <p style="font-size: 14px; margin-top: 15px; text-decoration: underline; color: var(--gray); cursor: pointer;" onclick="toggleMode()" id="toggle-text">계정이 없으신가요? 가입하기</p>
+        </div>
+    </div>
 
-    const name = document.getElementById('stock-name').value;
-    const type = document.getElementById('trade-type').value;
-    const qty = Number(document.getElementById('stock-qty').value.replace(/,/g, ""));
-    const price = Number(document.getElementById('stock-price').value.replace(/,/g, ""));
-    
-    if(!name || !qty || !price) return alert("모든 항목을 입력해주세요!");
-
-    try {
-        // Firebase Firestore의 'trades' 컬렉션에 저장
-        await db.collection("trades").add({
-            uid: user.uid,
-            stockName: name,
-            type: type,
-            quantity: qty,
-            price: price,
-            total: qty * price,
-            date: new Date()
-        });
-
-        alert("성공적으로 기록되었습니다!");
-        
-        // 입력창 초기화
-        document.getElementById('stock-name').value = "";
-        document.getElementById('stock-qty').value = "";
-        document.getElementById('stock-price').value = "";
-        
-        // 데이터 저장 후 수익현황 업데이트를 위해 탭 이동
-        changeTab('profit', document.querySelector('.nav-item:nth-child(3)'));
-        loadTradeLogs(); 
-    } catch (e) {
-        alert("저장 실패: " + e.message);
-    }
-}
-
-// [2] 데이터 불러오기 기능 (수익현황)
-async function loadTradeLogs() {
-    const user = auth.currentUser;
-    const logList = document.getElementById('trade-list');
-    if (!user || !logList) return;
-
-    logList.innerHTML = "데이터 불러오는 중...";
-
-    try {
-        const snapshot = await db.collection("trades")
-            .where("uid", "==", user.uid)
-            .orderBy("date", "desc")
-            .get();
-
-        let html = "";
-        let totalProfit = 0;
-
-        snapshot.forEach((doc) => {
-            const data = doc.data();
-            const color = data.type === 'buy' ? 'var(--up)' : 'var(--down)';
-            const sign = data.type === 'buy' ? '매수' : '매도';
-            
-            html += `
-                <div class="card" style="margin-bottom: 10px; padding: 15px;">
-                    <div style="display: flex; justify-content: space-between;">
-                        <b>${data.stockName}</b>
-                        <span style="color: ${color}">${sign}</span>
-                    </div>
-                    <div style="font-size: 13px; color: var(--gray); margin-top: 5px;">
-                        ${data.quantity.toLocaleString()}주 | ₩${data.price.toLocaleString()}
-                        <div style="float: right; color: var(--text); font-weight: bold;">
-                            ₩${data.total.toLocaleString()}
-                        </div>
+    <div id="main-section" style="display: none;">
+        <div class="container">
+            <div id="page-home" class="page active-page">
+                <header style="margin-bottom: 20px; display: flex; justify-content: space-between; align-items: center;">
+                    <span style="font-size: 18px; font-weight: bold;" id="welcome-msg">BlissHo님</span>
+                    <span style="font-size: 12px; color: var(--gray); cursor: pointer;" onclick="location.reload()">로그아웃</span>
+                </header>
+                <div class="card">
+                    <div class="card-title">총 자산 평가액</div>
+                    <div class="total-amount">₩ 124,500,000</div>
+                    <div class="sub-amount">≈ $ 92,051.75</div>
+                    <div class="rate-tag">현재 환율: $1 = 1,352.5원</div>
+                </div>
+                <div class="card">
+                    <div class="card-title">자산 구성 (주식 및 현금)</div>
+                    <div style="height: 220px; margin: 20px 0;">
+                        <canvas id="assetChart"></canvas>
                     </div>
                 </div>
-            `;
-        });
+            </div>
 
-        logList.innerHTML = html || "기록된 매매 내역이 없습니다.";
-    } catch (e) {
-        console.error(e);
-        logList.innerHTML = "데이터를 불러올 수 없습니다.";
-    }
-}
+            <div id="page-log" class="page">
+                <h3>📝 매매 기록하기</h3>
+                <div class="card">
+                    <div class="input-group">
+                        <label>종목명</label>
+                        <input type="text" id="stock-name" placeholder="예: NVDA, 삼성전자">
+                    </div>
+                    <div class="input-group">
+                        <label>수량</label>
+                        <input type="text" id="stock-qty" oninput="formatNumber(this)" placeholder="0">
+                    </div>
+                    <div class="input-group">
+                        <label>단가</label>
+                        <input type="text" id="stock-price" oninput="formatNumber(this)" placeholder="0">
+                    </div>
+                    <button class="btn" onclick="saveData()">데이터베이스 저장</button>
+                </div>
+            </div>
 
-// [3] 탭 전환 시 자동 새로고침 설정
-function changeTab(pageId, el) {
-    document.querySelectorAll('.page').forEach(p => p.classList.remove('active-page'));
-    document.getElementById('page-' + pageId).classList.add('active-page');
-    document.querySelectorAll('.nav-item').forEach(btn => btn.classList.remove('active'));
-    el.classList.add('active');
+            <div id="page-profit" class="page">
+                <h3>💰 수익 현황 및 내역</h3>
+                <div class="card" style="background: var(--primary); color: white;">
+                    <div style="font-size: 14px; opacity: 0.8;">총 투자 원금</div>
+                    <div id="total-invested" style="font-size: 22px; font-weight: bold;">₩ 0</div>
+                </div>
+                <div class="card">
+                    <div class="card-title">매매 내역 리스트</div>
+                    <div id="trade-list">
+                        <p style="text-align: center; color: var(--gray);">데이터를 불러오는 중...</p>
+                    </div>
+                </div>
+            </div>
+        </div>
 
-    if (pageId === 'profit') loadTradeLogs(); // 수익현황 탭 클릭 시 리스트 로드
-}
+        <nav class="bottom-nav">
+            <button class="nav-item active" onclick="changeTab('home', this)">
+                <div class="nav-icon">🏠</div>홈
+            </button>
+            <button class="nav-item" onclick="changeTab('log', this)">
+                <div class="nav-icon">📊</div>매매일지
+            </button>
+            <button class="nav-item" onclick="changeTab('profit', this)">
+                <div class="nav-icon">💰</div>수익현황
+            </button>
+            <button class="nav-item" onclick="alert('준비 중입니다')">
+                <div class="nav-icon">⚙️</div>설정
+            </button>
+        </nav>
+    </div>
+
+    <script>
+        // 1. Firebase 설정
+        const firebaseConfig = {
+            apiKey: "AIzaSyCEPH9Y5e0VoqGl4FViWo5pVlA8UlxpzCg",
+            authDomain: "assetmanager-66aec.firebaseapp.com",
+            projectId: "assetmanager-66aec",
+            storageBucket: "assetmanager-66aec.firebasestorage.app",
+            messagingSenderId: "928785817084",
+            appId: "1:928785817084:web:2b75ce39d745bdc3202679"
+        };
+        firebase.initializeApp(firebaseConfig);
+        const auth = firebase.auth();
+        const db = firebase.firestore();
+
+        // 2. 천단위 쉼표 함수
+        function formatNumber(el) {
+            let val = el.value.replace(/[^0-9]/g, "");
+            if(val) el.value = Number(val).toLocaleString();
+        }
+
+        // 3. 탭 전환 및 데이터 불러오기
+        function changeTab(pageId, el) {
+            document.querySelectorAll('.page').forEach(p => p.classList.remove('active-page'));
+            document.getElementById('page-' + pageId).classList.add('active-page');
+            document.querySelectorAll('.nav-item').forEach(btn => btn.classList.remove('active'));
+            el.classList.add('active');
+
+            if(pageId === 'profit') loadTrades(); // 수익현황 탭 클릭 시 데이터 로드
+        }
+
+        // 4. 데이터 저장 (매매일지)
+        async function saveData() {
+            const user = auth.currentUser;
+            if (!user) return alert("로그인 후 이용 가능합니다.");
+
+            const name = document.getElementById('stock-name').value;
+            const qty = Number(document.getElementById('stock-qty').value.replace(/,/g, ""));
+            const price = Number(document.getElementById('stock-price').value.replace(/,/g, ""));
+
+            if(!name || !qty || !price) return alert("모든 칸을 채워주세요!");
+
+            try {
+                await db.collection("trades").add({
+                    uid: user.uid,
+                    stockName: name,
+                    quantity: qty,
+                    price: price,
+                    date: new Date()
+                });
+                alert("성공적으로 저장되었습니다!");
+                document.getElementById('stock-name').value = "";
+                document.getElementById('stock-qty').value = "";
+                document.getElementById('stock-price').value = "";
+            } catch(e) { alert("저장 실패: " + e.message); }
+        }
+
+        // 5. 데이터 불러오기 (수익현황)
+        async function loadTrades() {
+            const user = auth.currentUser;
+            const listDiv = document.getElementById('trade-list');
+            const totalDiv = document.getElementById('total-invested');
+            
+            try {
+                const snapshot = await db.collection("trades")
+                    .where("uid", "==", user.uid)
+                    .orderBy("date", "desc")
+                    .get();
+
+                let html = "";
+                let grandTotal = 0;
+
+                snapshot.forEach(doc => {
+                    const d = doc.data();
+                    const sum = d.quantity * d.price;
+                    grandTotal += sum;
+                    html += `
+                        <div class="trade-item">
+                            <div>
+                                <strong>${d.stockName}</strong><br>
+                                <small>${d.quantity}주 x ₩${d.price.toLocaleString()}</small>
+                            </div>
+                            <div style="text-align:right;">
+                                <strong>₩${sum.toLocaleString()}</strong>
+                            </div>
+                        </div>
+                    `;
+                });
+
+                listDiv.innerHTML = html || "<p style='text-align:center;'>내역이 없습니다.</p>";
+                totalDiv.innerText = `₩ ${grandTotal.toLocaleString()}`;
+            } catch(e
