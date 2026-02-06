@@ -9,51 +9,46 @@
     <script src="https://www.gstatic.com/firebasejs/10.7.1/firebase-firestore-compat.js"></script>
     <style>
         :root { --primary: #1877f2; --bg: #f0f2f5; --card: #ffffff; }
-        body { font-family: -apple-system, sans-serif; background: var(--bg); margin: 0; padding: 0; display: flex; flex-direction: column; min-height: 100vh; }
-        .auth-screen { flex: 1; display: flex; justify-content: center; align-items: center; padding: 20px; }
-        .card { background: var(--card); padding: 30px; border-radius: 20px; box-shadow: 0 4px 15px rgba(0,0,0,0.1); width: 100%; max-width: 400px; text-align: center; }
+        body { font-family: -apple-system, sans-serif; background: var(--bg); margin: 0; display: flex; justify-content: center; align-items: center; min-height: 100vh; }
+        .card { background: var(--card); padding: 30px; border-radius: 20px; box-shadow: 0 4px 15px rgba(0,0,0,0.1); width: 90%; max-width: 380px; text-align: center; }
         h1 { color: var(--primary); font-size: 1.5rem; margin-bottom: 20px; }
-        input { width: 100%; padding: 14px; margin-bottom: 12px; border: 1px solid #ddd; border-radius: 10px; font-size: 16px; box-sizing: border-box; }
-        .btn { width: 100%; padding: 14px; background: var(--primary); color: white; border: none; border-radius: 10px; font-weight: bold; font-size: 16px; cursor: pointer; }
-        .sub-btn { margin-top: 15px; color: #65676b; font-size: 14px; cursor: pointer; text-decoration: underline; }
+        input { width: 100%; padding: 14px; margin-bottom: 12px; border: 1px solid #ddd; border-radius: 10px; font-size: 16px; box-sizing: border-box; outline: none; }
+        input:focus { border-color: var(--primary); }
+        .btn { width: 100%; padding: 14px; background: var(--primary); color: white; border: none; border-radius: 10px; font-weight: bold; font-size: 16px; cursor: pointer; margin-top: 5px; }
+        .sub-btn { margin-top: 15px; color: #65676b; font-size: 14px; cursor: pointer; }
+        .sub-btn span { color: var(--primary); text-decoration: underline; font-weight: bold; }
         .hidden { display: none; }
-        /* 탭 바 */
-        .bottom-nav { position: fixed; bottom: 0; width: 100%; background: white; border-top: 1px solid #ddd; display: flex; justify-content: space-around; padding: 10px 0; }
-        .nav-item { font-size: 12px; color: #65676b; text-align: center; cursor: pointer; }
-        .nav-item.active { color: var(--primary); font-weight: bold; }
     </style>
 </head>
 <body>
 
-    <div id="auth-section" class="auth-screen">
-        <div class="card">
-            <h1 id="title">자산 관리 시작</h1>
-            <input type="email" id="email" placeholder="이메일 (ID)">
-            <input type="text" id="nickname" class="hidden" placeholder="닉네임 (4자 이상)">
-            <input type="password" id="pw1" placeholder="비밀번호">
-            <input type="password" id="pw2" class="hidden" placeholder="비밀번호 확인">
-            <button class="btn" id="main-btn" onclick="handleAuth()">계정 생성</button>
-            <div class="sub-btn" id="toggle-link" onclick="toggleMode()">이미 계정이 있으신가요? 로그인</div>
-            <div id="find-links" class="sub-btn">ID/PW 찾기</div>
+    <div id="auth-section" class="card">
+        <h1 id="title">로그인</h1>
+        
+        <input type="email" id="email" placeholder="이메일 주소">
+        
+        <div id="signup-fields" class="hidden">
+            <input type="text" id="nickname" placeholder="닉네임 (4자 이상)">
+            <input type="password" id="pw2" placeholder="비밀번호 확인">
+        </div>
+        
+        <input type="password" id="pw1" placeholder="비밀번호">
+        
+        <button class="btn" id="main-btn" onclick="handleAuth()">로그인</button>
+        
+        <div class="sub-btn" onclick="toggleMode()">
+            <span id="toggle-text">계정이 없으신가요? 계정 생성하기</span>
         </div>
     </div>
 
-    <div id="main-section" class="hidden">
-        <div style="padding: 20px; padding-bottom: 80px;">
-            <h2 id="welcome-msg">님, 환영합니다!</h2>
-            <p>데이터 불러오는 중...</p>
-        </div>
-        
-        <nav class="bottom-nav">
-            <div class="nav-item active">🏠<br>홈</div>
-            <div class="nav-item">📝<br>매매일지</div>
-            <div class="nav-item">📈<br>수익내역</div>
-            <div class="nav-item">➕<br>더보기</div>
-        </nav>
+    <div id="main-section" class="card hidden">
+        <h2 id="welcome-msg">님, 환영합니다!</h2>
+        <p>자산 관리 대시보드를 준비 중입니다.</p>
+        <button class="btn" onclick="location.reload()">로그아웃</button>
     </div>
 
     <script>
-            const firebaseConfig = {
+        const firebaseConfig = {
             apiKey: "AIzaSyCEPH9Y5e0VoqGl4FViWo5pVlA8UlxpzCg",
             authDomain: "assetmanager-66aec.firebaseapp.com",
             projectId: "assetmanager-66aec",
@@ -66,51 +61,47 @@
         const auth = firebase.auth();
         const db = firebase.firestore();
 
-        let isSignUp = true;
+        let isSignUpMode = false; // 처음엔 로그인 모드
 
         function toggleMode() {
-            isSignUp = !isSignUp;
-            document.getElementById('title').innerText = isSignUp ? "계정 생성" : "로그인";
-            document.getElementById('main-btn').innerText = isSignUp ? "가입하기" : "로그인";
-            document.getElementById('nickname').classList.toggle('hidden', !isSignUp);
-            document.getElementById('pw2').classList.toggle('hidden', !isSignUp);
-            document.getElementById('toggle-link').innerText = isSignUp ? "이미 계정이 있나요? 로그인" : "계정이 없으신가요? 계정 생성";
+            isSignUpMode = !isSignUpMode;
+            document.getElementById('title').innerText = isSignUpMode ? "계정 생성" : "로그인";
+            document.getElementById('main-btn').innerText = isSignUpMode ? "가입하기" : "로그인";
+            document.getElementById('signup-fields').classList.toggle('hidden', !isSignUpMode);
+            document.getElementById('toggle-text').innerText = isSignUpMode ? "이미 계정이 있나요? 로그인하기" : "계정이 없으신가요? 계정 생성하기";
         }
 
         async function handleAuth() {
             const email = document.getElementById('email').value;
-            const pw = document.getElementById('pw1').value;
-            const nick = document.getElementById('nickname').value;
+            const pw1 = document.getElementById('pw1').value;
 
-            if (isSignUp) {
-                if (pw !== document.getElementById('pw2').value) return alert("비밀번호가 일치하지 않습니다.");
+            if (isSignUpMode) {
+                const nick = document.getElementById('nickname').value;
+                const pw2 = document.getElementById('pw2').value;
+
+                if (!email || !pw1 || !nick) return alert("모든 항목을 입력해주세요.");
                 if (nick.length < 4) return alert("닉네임은 4자 이상 입력해주세요.");
+                if (pw1 !== pw2) return alert("비밀번호가 서로 다릅니다.");
 
                 try {
-                    const result = await auth.createUserWithEmailAndPassword(email, pw);
-                    await result.user.sendEmailVerification();
-                    await db.collection("users").doc(result.user.uid).set({ nickname: nick });
-                    alert("인증 이메일을 보냈습니다. 확인 후 로그인해주세요!");
+                    const res = await auth.createUserWithEmailAndPassword(email, pw1);
+                    await res.user.sendEmailVerification();
+                    await db.collection("users").doc(res.user.uid).set({ nickname: nick, createdAt: new Date() });
+                    alert("인증 메일을 발송했습니다! 메일함 확인 후 로그인해주세요.");
                     toggleMode();
-                } catch (e) { alert("가입 오류: " + e.message); }
+                } catch (e) { alert("오류: " + e.message); }
             } else {
                 try {
-                    const result = await auth.signInWithEmailAndPassword(email, pw);
-                    if (!result.user.emailVerified) return alert("이메일 인증을 완료해주세요!");
-                    showDashboard(result.user.uid);
-                } catch (e) { alert("로그인 실패: " + e.message); }
+                    const res = await auth.signInWithEmailAndPassword(email, pw1);
+                    if (!res.user.emailVerified) return alert("이메일 인증을 완료해주세요!");
+                    
+                    const userDoc = await db.collection("users").doc(res.user.uid).get();
+                    document.getElementById('welcome-msg').innerText = `${userDoc.data().nickname}님, 환영합니다!`;
+                    document.getElementById('auth-section').classList.add('hidden');
+                    document.getElementById('main-section').classList.remove('hidden');
+                } catch (e) { alert("로그인 실패: 이메일 또는 비밀번호를 확인하세요."); }
             }
-        }
-
-        async function showDashboard(uid) {
-            const userDoc = await db.collection("users").doc(uid).get();
-            document.getElementById('welcome-msg').innerText = `${userDoc.data().nickname}님, 환영합니다!`;
-            document.getElementById('auth-section').classList.add('hidden');
-            document.getElementById('main-section').classList.remove('hidden');
         }
     </script>
 </body>
 </html>
-
-
-
