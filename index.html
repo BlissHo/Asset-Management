@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-    <title>BlissHo 자산관리 v1.1.0</title>
+    <title>BlissHo 자산관리 v1.0.9</title>
     <script src="https://www.gstatic.com/firebasejs/10.7.1/firebase-app-compat.js"></script>
     <script src="https://www.gstatic.com/firebasejs/10.7.1/firebase-auth-compat.js"></script>
     <script src="https://www.gstatic.com/firebasejs/10.7.1/firebase-firestore-compat.js"></script>
@@ -45,6 +45,7 @@
             </div>
             <button class="btn" onclick="handleAuth('login')">로그인</button>
             <div class="auth-links"><span onclick="handleAuth('signup')">계정 생성</span><span onclick="resetPassword()">비밀번호 찾기</span></div>
+            <div style="margin-top: 25px; font-size: 11px; color: #ccc;">version 1.0.9.</div>
         </div>
     </div>
 
@@ -66,17 +67,70 @@
                     <div id="home-recent-list"></div>
                 </div>
             </div>
+
             <div id="page-log" class="page">
-                <div class="card"><h3>💰 입출금</h3><div class="input-row"><select id="fund-currency" style="flex:0.4;"><option value="KRW">원화</option><option value="USD">달러</option></select><input type="text" id="fund-amount" oninput="formatNumber(this)" placeholder="금액"></div><div class="input-row"><button onclick="saveFund('in')" class="btn" style="background:var(--green); flex:1;">입금 (+)</button><button onclick="saveFund('out')" class="btn" style="background:var(--up); flex:1;">출금 (-)</button></div></div>
-                <div class="card"><h3>📝 매수/매도</h3><div class="input-row"><select id="trade-type" style="flex:0.5;"><option value="buy">매수</option><option value="sell">매도</option></select><select id="trade-currency" style="flex:0.5;"><option value="KRW">₩ (원화)</option><option value="USD">$ (미국)</option></select></div><input type="text" id="stock-name" class="input-group" placeholder="종목명"><div class="input-row"><input type="text" id="stock-qty" oninput="formatNumber(this)" placeholder="수량"><input type="text" id="stock-price" oninput="formatNumber(this)" placeholder="단가"></div><button class="btn" onclick="saveTrade()">저장하기</button></div>
-                <div class="card"><h3>📅 활동 내역</h3><div id="log-history-list" class="history-list"></div></div>
+                <div class="card">
+                    <h3>💰 입출금</h3>
+                    <div class="input-row">
+                        <select id="fund-currency" style="flex:0.4;"><option value="KRW">원화</option><option value="USD">달러</option></select>
+                        <input type="text" id="fund-amount" oninput="formatNumber(this)" placeholder="금액">
+                    </div>
+                    <div class="input-row">
+                        <button onclick="saveFund('in')" class="btn" style="background:var(--green); flex:1;">입금 (+)</button>
+                        <button onclick="saveFund('out')" class="btn" style="background:var(--up); flex:1;">출금 (-)</button>
+                    </div>
+                </div>
+                <div class="card">
+                    <h3>📝 매수/매도</h3>
+                    <div class="input-row">
+                        <select id="trade-type" style="flex:0.5;"><option value="buy">매수</option><option value="sell">매도</option></select>
+                        <select id="trade-currency" style="flex:0.5;"><option value="KRW">₩ (원화)</option><option value="USD">$ (미국)</option></select>
+                    </div>
+                    <input type="text" id="stock-name" class="input-group" placeholder="종목명">
+                    <div class="input-row">
+                        <input type="text" id="stock-qty" oninput="formatNumber(this)" placeholder="수량">
+                        <input type="text" id="stock-price" oninput="formatNumber(this)" placeholder="단가">
+                    </div>
+                    <button class="btn" onclick="saveTrade()">저장하기</button>
+                </div>
+                <div class="card">
+                    <h3>📅 활동 내역</h3>
+                    <div id="log-history-list" class="history-list"></div>
+                </div>
             </div>
+
             <div id="page-profit" class="page">
-                <div class="card" style="background: var(--primary); color: white; text-align: center;"><small>총 평가금액</small><div id="p-total-eval" style="font-size: 24px; font-weight: bold;">₩ 0</div><div style="margin-top:10px; display:flex; justify-content: space-around;"><div><small>매수원금</small><div id="p-total-buy">₩ 0</div></div><div><small>잔여현금</small><div id="p-total-cash">₩ 0</div></div></div></div>
-                <div class="card"><table class="profit-table"><thead><tr><th>종목</th><th>평단(환산)</th><th style="text-align:right;">평가액</th></tr></thead><tbody id="stock-profit-table-body"></tbody></table></div>
+                <div class="card" style="background: var(--primary); color: white; text-align: center;">
+                    <small style="opacity:0.8;">총 평가금액</small>
+                    <div id="p-total-eval" style="font-size: 26px; font-weight: bold;">₩ 0</div>
+                    <div id="p-total-eval-usd" style="font-size: 14px; opacity:0.9; margin-bottom:15px;">$ 0.00</div>
+                    
+                    <div style="display:flex; justify-content: space-around; border-top: 1px solid rgba(255,255,255,0.2); padding-top:15px;">
+                        <div>
+                            <small style="opacity:0.8;">매수원금</small>
+                            <div id="p-total-buy" style="font-weight:bold;">₩ 0</div>
+                            <div id="p-total-buy-usd" style="font-size:12px; opacity:0.9;">$ 0.00</div>
+                        </div>
+                        <div>
+                            <small style="opacity:0.8;">잔여현금</small>
+                            <div id="p-total-cash" style="font-weight:bold;">₩ 0</div>
+                            <div id="p-total-cash-usd" style="font-size:12px; opacity:0.9;">$ 0.00</div>
+                        </div>
+                    </div>
+                </div>
+                <div class="card">
+                    <table class="profit-table">
+                        <thead><tr><th>종목</th><th>평단(환산)</th><th style="text-align:right;">평가액</th></tr></thead>
+                        <tbody id="stock-profit-table-body"></tbody>
+                    </table>
+                </div>
             </div>
-            <div id="page-more" class="page"><div class="card"><h3>⚙️ 관리</h3><button class="btn" style="background:var(--up); margin-bottom:10px;" onclick="clearAllData()">전체 데이터 초기화</button><button class="btn" style="background:var(--gray);" onclick="location.reload()">로그아웃</button></div></div>
+
+            <div id="page-more" class="page">
+                <div class="card"><h3>⚙️ 관리</h3><button class="btn" style="background:var(--up); margin-bottom:10px;" onclick="clearAllData()">전체 데이터 초기화</button><button class="btn" style="background:var(--gray);" onclick="location.reload()">로그아웃</button></div>
+            </div>
         </div>
+
         <nav class="bottom-nav">
             <button class="nav-item active" onclick="changeTab('home', this)"><div>🏠</div><span>홈</span></button>
             <button class="nav-item" onclick="changeTab('log', this)"><div>📊</div><span>일지</span></button>
@@ -117,7 +171,6 @@
                         if(cur === 'KRW') { stockKRW -= avg * t.quantity; cashKRW += t.quantity * t.price; }
                         else { stockUSD -= avg * t.quantity; cashUSD += t.quantity * t.price; }
                     }
-                    // ★ 최근 매매 내역에 [가격] 반영 (홈 화면)
                     if(homeRecentHtml.split('border-bottom').length <= 5) {
                         const curSym = cur === 'USD' ? '$' : '₩';
                         homeRecentHtml += `<div style="padding:12px 0; border-bottom:1px solid #f0f0f0; font-size:13px; display:flex; justify-content:space-between;">
@@ -133,12 +186,25 @@
                 </div>`;
             });
 
-            const totalEval = cashKRW + (cashUSD * EX_RATE) + stockKRW + stockUSD;
-            document.getElementById('h-total-krw').innerText = `₩ ${Math.floor(totalEval).toLocaleString()}`;
-            document.getElementById('h-total-usd').innerText = `$ ${(totalEval / EX_RATE).toFixed(2)}`;
-            document.getElementById('p-total-eval').innerText = `₩ ${Math.floor(totalEval).toLocaleString()}`;
-            document.getElementById('p-total-buy').innerText = `₩ ${Math.floor(stockKRW + stockUSD).toLocaleString()}`;
-            document.getElementById('p-total-cash').innerText = `₩ ${Math.floor(cashKRW + cashUSD * EX_RATE).toLocaleString()}`;
+            // 계산 및 UI 반영
+            const totalCashKRW = cashKRW + (cashUSD * EX_RATE);
+            const totalStockKRW = stockKRW + stockUSD;
+            const totalEvalKRW = totalCashKRW + totalStockKRW;
+
+            // [홈] 반영
+            document.getElementById('h-total-krw').innerText = `₩ ${Math.floor(totalEvalKRW).toLocaleString()}`;
+            document.getElementById('h-total-usd').innerText = `$ ${(totalEvalKRW / EX_RATE).toFixed(2)}`;
+            
+            // [수익] 상단 파란 박스 반영 (달러 병기)
+            document.getElementById('p-total-eval').innerText = `₩ ${Math.floor(totalEvalKRW).toLocaleString()}`;
+            document.getElementById('p-total-eval-usd').innerText = `$ ${(totalEvalKRW / EX_RATE).toFixed(2)}`;
+            
+            document.getElementById('p-total-buy').innerText = `₩ ${Math.floor(totalStockKRW).toLocaleString()}`;
+            document.getElementById('p-total-buy-usd').innerText = `$ ${(totalStockKRW / EX_RATE).toFixed(2)}`;
+            
+            document.getElementById('p-total-cash').innerText = `₩ ${Math.floor(totalCashKRW).toLocaleString()}`;
+            document.getElementById('p-total-cash-usd').innerText = `$ ${(totalCashKRW / EX_RATE).toFixed(2)}`;
+
             document.getElementById('log-history-list').innerHTML = logHtml || "내역 없음";
             document.getElementById('home-recent-list').innerHTML = homeRecentHtml || "내역 없음";
 
@@ -154,7 +220,6 @@
             myChart = new Chart(ctx, { type: 'doughnut', data: { labels: ['한국주식', '원화현금', '미국주식', '달러현금'], datasets: [{ data: [sK, cK, sU, cU], backgroundColor: ['#f1c40f', '#1266df', '#d93025', '#00a400'] }] }, options: { responsive: true, maintainAspectRatio: false, plugins: { legend: { position: 'bottom' } } } });
         }
 
-        // ★ 아이디 및 비밀번호 저장 로직 수정
         async function handleAuth(type) {
             const email = document.getElementById('email').value;
             const pw = document.getElementById('pw1').value;
@@ -163,13 +228,8 @@
             try {
                 if(type === 'login') await auth.signInWithEmailAndPassword(email, pw);
                 else await auth.createUserWithEmailAndPassword(email, pw);
-                if(isRemember) {
-                    localStorage.setItem('savedEmail', email);
-                    localStorage.setItem('savedPw', pw); // 비밀번호 저장 추가
-                } else {
-                    localStorage.removeItem('savedEmail');
-                    localStorage.removeItem('savedPw');
-                }
+                if(isRemember) { localStorage.setItem('savedEmail', email); localStorage.setItem('savedPw', pw); }
+                else { localStorage.removeItem('savedEmail'); localStorage.removeItem('savedPw'); }
                 document.getElementById('auth-section').style.display = 'none';
                 document.getElementById('main-section').style.display = 'block';
                 subscribeData();
@@ -179,11 +239,8 @@
         window.onload = () => {
             const savedEmail = localStorage.getItem('savedEmail');
             const savedPw = localStorage.getItem('savedPw');
-            if(savedEmail) {
-                document.getElementById('email').value = savedEmail;
-                document.getElementById('remember-me').checked = true;
-            }
-            if(savedPw) document.getElementById('pw1').value = savedPw; // 자동 채우기
+            if(savedEmail) { document.getElementById('email').value = savedEmail; document.getElementById('remember-me').checked = true; }
+            if(savedPw) document.getElementById('pw1').value = savedPw;
         };
 
         function subscribeData() { db.collection("trades").where("uid", "==", auth.currentUser.uid).orderBy("date", "desc").onSnapshot(snap => { let trades = []; snap.forEach(doc => trades.push({id: doc.id, ...doc.data()})); updateUI(trades); }); }
