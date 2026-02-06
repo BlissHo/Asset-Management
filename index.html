@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-    <title>BlissHo 자산관리 v1.0.12</title>
+    <title>BlissHo 자산관리 v1.0.13</title>
     <script src="https://www.gstatic.com/firebasejs/10.7.1/firebase-app-compat.js"></script>
     <script src="https://www.gstatic.com/firebasejs/10.7.1/firebase-auth-compat.js"></script>
     <script src="https://www.gstatic.com/firebasejs/10.7.1/firebase-firestore-compat.js"></script>
@@ -25,12 +25,12 @@
         .page { display: none; } .active-page { display: block; }
         .badge { padding: 4px 10px; border-radius: 6px; font-size: 12px; color: white; font-weight: bold; }
         .in { background: var(--green); } .out { background: var(--up); }
-        .history-list { max-height: 350px; overflow-y: auto; }
-        .profit-table { width: 100%; border-collapse: collapse; font-size: 13px; }
-        .profit-table th { text-align: left; color: var(--gray); padding-bottom: 10px; border-bottom: 1px solid #eee; }
-        .profit-table td { padding: 12px 0; border-bottom: 1px solid #f9f9f9; vertical-align: middle; }
-        .auth-links { margin-top: 20px; display: flex; justify-content: center; gap: 20px; font-size: 14px; color: var(--primary); }
-        .auth-links span { cursor: pointer; text-decoration: underline; }
+        .profit-table { width: 100%; border-collapse: collapse; font-size: 11px; table-layout: fixed; }
+        .profit-table th { text-align: center; color: var(--gray); padding-bottom: 8px; border-bottom: 1px solid #eee; font-weight: normal; }
+        .profit-table td { padding: 12px 2px; border-bottom: 1px solid #f9f9f9; vertical-align: middle; text-align: center; }
+        .txt-up { color: var(--up); font-weight: bold; }
+        .txt-down { color: var(--down); font-weight: bold; }
+        .version-info { text-align: center; font-size: 11px; color: #ccc; margin-top: 20px; }
     </style>
 </head>
 <body>
@@ -44,8 +44,10 @@
                 <input type="checkbox" id="remember-me"> <label for="remember-me" style="font-size:14px; color:var(--gray);">로그인 정보(ID/PW) 저장</label>
             </div>
             <button class="btn" onclick="handleAuth('login')">로그인</button>
-            <div class="auth-links"><span onclick="handleAuth('signup')">계정 생성</span><span onclick="resetPassword()">비밀번호 찾기</span></div>
-            <div style="margin-top: 25px; font-size: 11px; color: #ccc;">version 1.0.12.</div>
+            <div style="margin-top:20px; font-size:14px; color:var(--primary); cursor:pointer;">
+                <span onclick="handleAuth('signup')">계정 생성</span> | <span onclick="resetPassword()">비밀번호 찾기</span>
+            </div>
+            <div class="version-info">version 1.0.13</div>
         </div>
     </div>
 
@@ -55,17 +57,11 @@
                 <div class="card" style="text-align: center;">
                     <div style="font-size: 15px; color: var(--gray);">내 총 자산 평가액</div>
                     <div id="h-total-krw" style="font-size:32px; font-weight:800; color:var(--primary);">₩ 0</div>
-                    <div id="h-total-usd" style="font-size:20px; color:var(--gray); margin-bottom:10px;">$ 0.00</div>
-                    <div style="font-size:12px; color:var(--up);">환율: $1 = 1,350.5원</div>
+                    <div id="h-total-usd" style="font-size:20px; color:var(--gray);">$ 0.00</div>
+                    <div style="font-size:11px; color:var(--up); margin-top:5px;">환율: $1 = 1,350.5원</div>
                 </div>
-                <div class="card">
-                    <h3 style="margin-top:0;">📊 자산 구성 비중</h3>
-                    <div style="height: 280px;"><canvas id="assetChart"></canvas></div>
-                </div>
-                <div class="card">
-                    <h3 style="margin-top:0;">🕒 최근 매매 내역</h3>
-                    <div id="home-recent-list"></div>
-                </div>
+                <div class="card"><h3 style="margin-top:0;">📊 자산 구성 비중</h3><div style="height: 250px;"><canvas id="assetChart"></canvas></div></div>
+                <div class="card"><h3 style="margin-top:0;">🕒 최근 매매 내역</h3><div id="home-recent-list"></div></div>
             </div>
 
             <div id="page-log" class="page">
@@ -86,52 +82,49 @@
                         <select id="trade-type" style="flex:0.5;"><option value="buy">매수</option><option value="sell">매도</option></select>
                         <select id="trade-currency" style="flex:0.5;"><option value="KRW">₩ (원화)</option><option value="USD">$ (미국)</option></select>
                     </div>
-                    <input type="text" id="stock-name" class="input-group" 
-                           placeholder="종목명 (미국주식: Ticker / 한국주식: 한글)" 
-                           oninput="detectCurrency(this)">
+                    <input type="text" id="stock-name" class="input-group" placeholder="종목명" oninput="detectCurrency(this)">
                     <div class="input-row">
                         <input type="text" id="stock-qty" oninput="formatNumber(this)" placeholder="수량">
                         <input type="text" id="stock-price" oninput="formatNumber(this)" placeholder="단가">
                     </div>
                     <button class="btn" onclick="saveTrade()">저장하기</button>
                 </div>
-                <div class="card">
-                    <h3>📅 활동 내역</h3>
-                    <div id="log-history-list" class="history-list"></div>
-                </div>
+                <div id="log-history-list" class="card" style="max-height:300px; overflow-y:auto;"></div>
             </div>
 
             <div id="page-profit" class="page">
                 <div class="card" style="background: var(--primary); color: white; text-align: center;">
-                    <small style="opacity:0.8;">총 평가금액 (환산 합계)</small>
+                    <small>총 평가금액</small>
                     <div id="p-total-eval" style="font-size: 26px; font-weight: bold;">₩ 0</div>
-                    <div id="p-total-eval-usd" style="font-size: 14px; opacity:0.9; margin-bottom:15px;">$ 0.00</div>
-                    
-                    <div style="display:flex; justify-content: space-around; border-top: 1px solid rgba(255,255,255,0.2); padding-top:15px; gap: 5px;">
-                        <div style="flex:1;">
-                            <small style="opacity:0.8;">매수원금 (보유기준)</small>
-                            <div id="p-detail-buy-krw" style="font-size:13px; font-weight:bold;">₩ 0</div>
-                            <div id="p-detail-buy-usd" style="font-size:13px; font-weight:bold;">$ 0.00</div>
-                        </div>
-                        <div style="width:1px; background:rgba(255,255,255,0.2);"></div>
-                        <div style="flex:1;">
-                            <small style="opacity:0.8;">잔여현금 (보유기준)</small>
-                            <div id="p-detail-cash-krw" style="font-size:13px; font-weight:bold;">₩ 0</div>
-                            <div id="p-detail-cash-usd" style="font-size:13px; font-weight:bold;">$ 0.00</div>
-                        </div>
+                    <div style="display:flex; justify-content: space-around; border-top: 1px solid rgba(255,255,255,0.2); margin-top:15px; padding-top:15px;">
+                        <div><small>매수원금</small><div id="p-detail-buy-krw" style="font-size:13px; font-weight:bold;">₩ 0</div></div>
+                        <div><small>잔여현금 (<span id="p-cash-ratio">0</span>%)</small><div id="p-detail-cash-krw" style="font-size:13px; font-weight:bold;">₩ 0</div></div>
                     </div>
                 </div>
-                <div class="card">
+                <div class="card" style="padding: 15px 10px;">
                     <table class="profit-table">
-                        <thead><tr><th>종목</th><th>평단</th><th style="text-align:right;">평가액</th></tr></thead>
+                        <thead>
+                            <tr>
+                                <th width="22%">종목/수량</th>
+                                <th width="18%">종가</th>
+                                <th width="18%">평단</th>
+                                <th width="24%">평가액</th>
+                                <th width="18%">수익률</th>
+                            </tr>
+                        </thead>
                         <tbody id="stock-profit-table-body"></tbody>
                     </table>
                 </div>
             </div>
 
             <div id="page-more" class="page">
-                <div class="card"><h3>⚙️ 관리</h3><button class="btn" style="background:var(--up); margin-bottom:10px;" onclick="clearAllData()">전체 데이터 초기화</button><button class="btn" style="background:var(--gray);" onclick="location.reload()">로그아웃</button></div>
+                <div class="card">
+                    <h3>⚙️ 관리</h3>
+                    <button class="btn" style="background:var(--up); margin-bottom:10px;" onclick="clearAllData()">전체 데이터 초기화</button>
+                    <button class="btn" style="background:var(--gray);" onclick="location.reload()">로그아웃</button>
+                </div>
             </div>
+            <div class="version-info" style="margin-bottom: 100px;">version 1.0.13</div>
         </div>
 
         <nav class="bottom-nav">
@@ -148,11 +141,8 @@
         const auth = firebase.auth(); const db = firebase.firestore();
         let myChart = null; const EX_RATE = 1350.5;
 
-        // 종목명 별칭 매핑 (동일 종목 인식용)
-        const stockAlias = {
-            "엔비디아": "NVDA", "로켓랩": "RKLL", "레드와이어": "RDW", "애플": "AAPL", "테슬라": "TSLA", "삼성": "삼성전자"
-        };
-        // 한글로 입력해도 미국 주식으로 인식할 예외 리스트
+        // 종목명 매핑
+        const stockAlias = { "엔비디아": "NVDA", "로켓랩": "RKLB", "레드와이어": "RDW", "애플": "AAPL", "테슬라": "TSLA", "삼성": "삼성전자" };
         const usStockKorean = ["엔비디아", "로켓랩", "레드와이어", "테슬라", "애플", "구글", "마이크로소프트"];
 
         function getStandardName(name) {
@@ -160,108 +150,31 @@
             return stockAlias[upperName] || upperName;
         }
 
-        // ★ v1.0.12 핵심: 통화 자동 감지 로직
         function detectCurrency(el) {
             const val = el.value.trim();
             const curSelect = document.getElementById('trade-currency');
             if(!val) return;
-
             const isKorean = /[ㄱ-ㅎ|ㅏ-ㅣ|가-힣]/.test(val);
-            const isUsException = usStockKorean.includes(val);
-
-            if (isUsException) {
-                curSelect.value = "USD";
-            } else if (isKorean) {
-                curSelect.value = "KRW";
-            } else if (/[a-zA-Z]/.test(val)) {
-                curSelect.value = "USD";
-            }
-        }
-
-        function updateUI(trades) {
-            let cashKRW = 0; let cashUSD = 0; let stockBuyKRW = 0; let stockBuyUSD = 0;
-            let stocks = {}; let logHtml = ""; let homeRecentHtml = "";
-
-            trades.forEach((t) => {
-                const isFund = t.type === 'fund';
-                const cur = t.currency || 'KRW';
-                if(isFund) {
-                    if(cur === 'KRW') cashKRW += (t.direction === 'in' ? 1 : -1) * t.amount;
-                    else cashUSD += (t.direction === 'in' ? 1 : -1) * t.amount;
-                } else {
-                    const name = getStandardName(t.stockName);
-                    if(!stocks[name]) stocks[name] = { qty: 0, costKRW: 0, costUSD: 0, cur: cur };
-                    const tradeAmt = t.quantity * t.price;
-                    if(t.type === 'buy') {
-                        stocks[name].qty += t.quantity;
-                        if(cur === 'KRW') { stocks[name].costKRW += tradeAmt; stockBuyKRW += tradeAmt; cashKRW -= tradeAmt; }
-                        else { stocks[name].costUSD += tradeAmt; stockBuyUSD += tradeAmt; cashUSD -= tradeAmt; }
-                    } else {
-                        const ratio = t.quantity / (stocks[name].qty + t.quantity);
-                        stocks[name].qty -= t.quantity;
-                        if(cur === 'KRW') { stockBuyKRW -= (stocks[name].costKRW * ratio); cashKRW += tradeAmt; }
-                        else { stockBuyUSD -= (stocks[name].costUSD * ratio); cashUSD += tradeAmt; }
-                    }
-                    if(homeRecentHtml.split('border-bottom').length <= 5) {
-                        const curSym = cur === 'USD' ? '$' : '₩';
-                        homeRecentHtml += `<div style="padding:12px 0; border-bottom:1px solid #f0f0f0; font-size:13px; display:flex; justify-content:space-between;">
-                            <span><b>${name}</b> ${t.quantity}주 ${t.type==='buy'?'매수':'매도'}</span>
-                            <span style="color:var(--primary); font-weight:bold;">${curSym}${t.price.toLocaleString()}</span>
-                        </div>`;
-                    }
-                }
-                const label = isFund ? (t.direction==='in'?'입금':'출금') : (t.type==='buy'?'매수':'매도');
-                logHtml += `<div style="display:flex; justify-content:space-between; padding:12px 0; border-bottom:1px solid #f0f0f0;">
-                    <div><span class="badge ${t.type==='buy'||t.direction==='in'?'in':'out'}">${label}</span> <b>${isFund?cur+' '+t.amount.toLocaleString():t.stockName+' '+t.quantity+'주'}</b></div>
-                    <div style="font-size:12px; color:var(--gray);">${t.date ? t.date.toDate().toLocaleDateString() : '-'}</div>
-                </div>`;
-            });
-
-            const totalStockKRW = Object.values(stocks).reduce((acc, s) => acc + s.costKRW + (s.costUSD * EX_RATE), 0);
-            const totalEvalKRW = cashKRW + (cashUSD * EX_RATE) + totalStockKRW;
-
-            document.getElementById('h-total-krw').innerText = `₩ ${Math.floor(totalEvalKRW).toLocaleString()}`;
-            document.getElementById('h-total-usd').innerText = `$ ${(totalEvalKRW / EX_RATE).toFixed(2)}`;
-            document.getElementById('p-total-eval').innerText = `₩ ${Math.floor(totalEvalKRW).toLocaleString()}`;
-            document.getElementById('p-total-eval-usd').innerText = `$ ${(totalEvalKRW / EX_RATE).toFixed(2)}`;
-            document.getElementById('p-detail-buy-krw').innerText = `₩ ${Math.floor(stockBuyKRW).toLocaleString()}`;
-            document.getElementById('p-detail-buy-usd').innerText = `$ ${stockBuyUSD.toLocaleString(undefined, {minimumFractionDigits: 2})}`;
-            document.getElementById('p-detail-cash-krw').innerText = `₩ ${Math.floor(cashKRW).toLocaleString()}`;
-            document.getElementById('p-detail-cash-usd').innerText = `$ ${cashUSD.toLocaleString(undefined, {minimumFractionDigits: 2})}`;
-
-            let stockHtml = "";
-            for(let n in stocks) { 
-                if(stocks[n].qty > 0) { 
-                    const isUSD = stocks[n].cur === 'USD';
-                    const avgPriceKRW = (stocks[n].costKRW + (stocks[n].costUSD * EX_RATE)) / stocks[n].qty;
-                    const avgPriceUSD = avgPriceKRW / EX_RATE;
-                    const evalKRW = stocks[n].costKRW + (stocks[n].costUSD * EX_RATE);
-                    const evalUSD = evalKRW / EX_RATE;
-                    stockHtml += `<tr><td><b>${n}</b><br><small>${stocks[n].qty}주 (${stocks[n].cur})</small></td><td>${isUSD ? `<div style="font-weight:bold;">$${avgPriceUSD.toFixed(2)}</div><div style="font-size:11px; color:var(--gray);">₩${Math.floor(avgPriceKRW).toLocaleString()}</div>` : `<div style="font-weight:bold;">₩${Math.floor(avgPriceKRW).toLocaleString()}</div><div style="font-size:11px; color:var(--gray);">$${avgPriceUSD.toFixed(2)}</div>`}</td><td style="text-align:right;">${isUSD ? `<div style="font-weight:bold; color:var(--primary);">$${evalUSD.toLocaleString(undefined,{maximumFractionDigits:2})}</div><div style="font-size:11px; color:var(--gray);">₩${Math.floor(evalKRW).toLocaleString()}</div>` : `<div style="font-weight:bold; color:var(--primary);">₩${Math.floor(evalKRW).toLocaleString()}</div><div style="font-size:11px; color:var(--gray);">$${evalUSD.toFixed(2)}</div>`}</td></tr>`; 
-                } 
-            }
-            document.getElementById('stock-profit-table-body').innerHTML = stockHtml || "<tr><td colspan='3' style='text-align:center;'>내역 없음</td></tr>";
-            document.getElementById('log-history-list').innerHTML = logHtml || "내역 없음";
-            document.getElementById('home-recent-list').innerHTML = homeRecentHtml || "내역 없음";
-            updateChart(stockBuyKRW, cashKRW, stockBuyUSD * EX_RATE, cashUSD * EX_RATE);
-        }
-
-        function updateChart(sK, cK, sU, cU) {
-            const ctx = document.getElementById('assetChart').getContext('2d');
-            if(myChart) myChart.destroy();
-            myChart = new Chart(ctx, { type: 'doughnut', data: { labels: ['한국주식', '원화현금', '미국주식', '달러현금'], datasets: [{ data: [sK, cK, sU, cU], backgroundColor: ['#f1c40f', '#1266df', '#d93025', '#00a400'] }] }, options: { responsive: true, maintainAspectRatio: false, plugins: { legend: { position: 'bottom' } } } });
+            curSelect.value = (usStockKorean.includes(val) || (!isKorean && /[a-zA-Z]/.test(val))) ? "USD" : "KRW";
         }
 
         async function handleAuth(type) {
             const email = document.getElementById('email').value;
             const pw = document.getElementById('pw1').value;
             const isRemember = document.getElementById('remember-me').checked;
-            if(!email || !pw) return alert("입력하세요.");
+            if(!email || !pw) return alert("이메일과 비밀번호를 입력하세요.");
             try {
                 if(type === 'login') await auth.signInWithEmailAndPassword(email, pw);
                 else await auth.createUserWithEmailAndPassword(email, pw);
-                if(isRemember) { localStorage.setItem('savedEmail', email); localStorage.setItem('savedPw', pw); }
-                else { localStorage.removeItem('savedEmail'); localStorage.removeItem('savedPw'); }
+                
+                if(isRemember) {
+                    localStorage.setItem('savedEmail', email);
+                    localStorage.setItem('savedPw', pw);
+                } else {
+                    localStorage.removeItem('savedEmail');
+                    localStorage.removeItem('savedPw');
+                }
+                
                 document.getElementById('auth-section').style.display = 'none';
                 document.getElementById('main-section').style.display = 'block';
                 subscribeData();
@@ -269,11 +182,75 @@
         }
 
         window.onload = () => {
-            const savedEmail = localStorage.getItem('savedEmail');
-            const savedPw = localStorage.getItem('savedPw');
-            if(savedEmail) { document.getElementById('email').value = savedEmail; document.getElementById('remember-me').checked = true; }
-            if(savedPw) document.getElementById('pw1').value = savedPw;
+            const sEmail = localStorage.getItem('savedEmail');
+            const sPw = localStorage.getItem('savedPw');
+            if(sEmail) {
+                document.getElementById('email').value = sEmail;
+                document.getElementById('remember-me').checked = true;
+            }
+            if(sPw) document.getElementById('pw1').value = sPw;
         };
+
+        function updateUI(trades) {
+            let cashKRW = 0, cashUSD = 0, buyTotalKRW = 0;
+            let stocks = {}; let homeRecentHtml = "";
+            const sortedTrades = [...trades].sort((a, b) => a.date - b.date);
+
+            sortedTrades.forEach((t) => {
+                const cur = t.currency || 'KRW';
+                if(t.type === 'fund') {
+                    if(cur === 'KRW') cashKRW += (t.direction === 'in' ? 1 : -1) * t.amount;
+                    else cashUSD += (t.direction === 'in' ? 1 : -1) * t.amount;
+                } else {
+                    const name = getStandardName(t.stockName);
+                    if(!stocks[name]) stocks[name] = { qty: 0, costKRW: 0, lastPrice: 0, cur: cur };
+                    const tradeAmt = t.quantity * t.price;
+                    const tradeAmtKRW = cur === 'KRW' ? tradeAmt : tradeAmt * EX_RATE;
+
+                    if(t.type === 'buy') {
+                        stocks[name].qty += t.quantity;
+                        stocks[name].costKRW += tradeAmtKRW;
+                        if(cur === 'KRW') cashKRW -= tradeAmt; else cashUSD -= tradeAmt;
+                    } else {
+                        const ratio = t.quantity / (stocks[name].qty + t.quantity);
+                        stocks[name].qty -= t.quantity;
+                        stocks[name].costKRW -= (stocks[name].costKRW * ratio);
+                        if(cur === 'KRW') cashKRW += tradeAmt; else cashUSD += tradeAmt;
+                    }
+                    stocks[name].lastPrice = t.price;
+                }
+            });
+
+            let stockHtml = "", evalTotalKRW = 0;
+            for(let n in stocks) {
+                if(stocks[n].qty > 0) {
+                    const s = stocks[n];
+                    const avgPrice = s.costKRW / s.qty / (s.cur === 'USD' ? EX_RATE : 1);
+                    const evalKRW = s.qty * s.lastPrice * (s.cur === 'USD' ? EX_RATE : 1);
+                    const profitRate = ((s.lastPrice - avgPrice) / avgPrice * 100).toFixed(2);
+                    buyTotalKRW += s.costKRW;
+                    evalTotalKRW += evalKRW;
+                    stockHtml += `<tr><td><b>${n}</b><br><small>${s.qty}주</small></td><td>${s.cur==='USD'?'$':'₩'}${s.lastPrice.toLocaleString()}</td><td>${s.cur==='USD'?'$':'₩'}${avgPrice.toLocaleString(undefined,{maximumFractionDigits:1})}</td><td><b>₩${Math.floor(evalKRW).toLocaleString()}</b></td><td class="${profitRate>=0?'txt-up':'txt-down'}">${profitRate}%</td></tr>`;
+                }
+            }
+
+            const totalCashKRW = cashKRW + (cashUSD * EX_RATE);
+            const totalAssetKRW = totalCashKRW + evalTotalKRW;
+            document.getElementById('h-total-krw').innerText = `₩ ${Math.floor(totalAssetKRW).toLocaleString()}`;
+            document.getElementById('h-total-usd').innerText = `$ ${(totalAssetKRW / EX_RATE).toFixed(2)}`;
+            document.getElementById('p-total-eval').innerText = `₩ ${Math.floor(totalAssetKRW).toLocaleString()}`;
+            document.getElementById('p-detail-buy-krw').innerText = `₩ ${Math.floor(buyTotalKRW).toLocaleString()}`;
+            document.getElementById('p-detail-cash-krw').innerText = `₩ ${Math.floor(totalCashKRW).toLocaleString()}`;
+            document.getElementById('p-cash-ratio').innerText = totalAssetKRW > 0 ? ((totalCashKRW/totalAssetKRW)*100).toFixed(1) : 0;
+            document.getElementById('stock-profit-table-body').innerHTML = stockHtml || "<tr><td colspan='5'>데이터 없음</td></tr>";
+            updateChart(evalTotalKRW, totalCashKRW);
+        }
+
+        function updateChart(sK, cK) {
+            const ctx = document.getElementById('assetChart').getContext('2d');
+            if(myChart) myChart.destroy();
+            myChart = new Chart(ctx, { type: 'doughnut', data: { labels: ['주식', '현금'], datasets: [{ data: [sK, cK], backgroundColor: ['#1877f2', '#00a400'] }] }, options: { responsive: true, maintainAspectRatio: false } });
+        }
 
         function subscribeData() { db.collection("trades").where("uid", "==", auth.currentUser.uid).orderBy("date", "desc").onSnapshot(snap => { let trades = []; snap.forEach(doc => trades.push({id: doc.id, ...doc.data()})); updateUI(trades); }); }
         async function saveTrade() {
@@ -281,21 +258,20 @@
             const qty = Number(document.getElementById('stock-qty').value.replace(/,/g, ""));
             const price = Number(document.getElementById('stock-price').value.replace(/,/g, ""));
             const cur = document.getElementById('trade-currency').value;
-            if(!name || !qty || !price) return alert("항목을 채워주세요.");
+            if(!name || !qty || !price) return alert("필수 입력");
             await db.collection("trades").add({ uid: auth.currentUser.uid, type: document.getElementById('trade-type').value, currency: cur, stockName: name, quantity: qty, price: price, date: new Date() });
             document.getElementById('stock-name').value = ""; document.getElementById('stock-qty').value = ""; document.getElementById('stock-price').value = "";
         }
         async function saveFund(dir) {
             const amt = Number(document.getElementById('fund-amount').value.replace(/,/g, ""));
-            const cur = document.getElementById('fund-currency').value;
             if(!amt) return;
-            await db.collection("trades").add({ uid: auth.currentUser.uid, type: 'fund', direction: dir, currency: cur, amount: amt, date: new Date() });
+            await db.collection("trades").add({ uid: auth.currentUser.uid, type: 'fund', direction: dir, currency: document.getElementById('fund-currency').value, amount: amt, date: new Date() });
             document.getElementById('fund-amount').value = "";
         }
-        async function clearAllData() { if(!confirm("초기화하시겠습니까?")) return; const snap = await db.collection("trades").where("uid", "==", auth.currentUser.uid).get(); const batch = db.batch(); snap.forEach(doc => batch.delete(doc.ref)); await batch.commit(); }
         function changeTab(pageId, el) { document.querySelectorAll('.page').forEach(p => p.classList.remove('active-page')); document.getElementById('page-' + pageId).classList.add('active-page'); document.querySelectorAll('.nav-item').forEach(btn => btn.classList.remove('active')); el.classList.add('active'); }
         function formatNumber(el) { let val = el.value.replace(/[^0-9.]/g, ""); if(val) el.value = Number(val).toLocaleString(); }
-        async function resetPassword() { const email = document.getElementById('email').value; if(!email) return alert("이메일 입력 필요"); await auth.sendPasswordResetEmail(email); alert("발송완료"); }
+        async function clearAllData() { if(!confirm("초기화?")) return; const snap = await db.collection("trades").where("uid", "==", auth.currentUser.uid).get(); const batch = db.batch(); snap.forEach(doc => batch.delete(doc.ref)); await batch.commit(); }
+        async function resetPassword() { const email = document.getElementById('email').value; if(!email) return alert("이메일 입력"); await auth.sendPasswordResetEmail(email); alert("메일 발송"); }
     </script>
 </body>
 </html>
