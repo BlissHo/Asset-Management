@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-    <title>BlissHo 자산관리 v1.0.9</title>
+    <title>BlissHo 자산관리 v1.1.0</title>
     <script src="https://www.gstatic.com/firebasejs/10.7.1/firebase-app-compat.js"></script>
     <script src="https://www.gstatic.com/firebasejs/10.7.1/firebase-auth-compat.js"></script>
     <script src="https://www.gstatic.com/firebasejs/10.7.1/firebase-firestore-compat.js"></script>
@@ -41,8 +41,7 @@
             <input type="email" id="email" class="input-group" placeholder="이메일">
             <input type="password" id="pw1" class="input-group" placeholder="비밀번호">
             <div style="text-align: left; margin-bottom: 15px;">
-                <input type="checkbox" id="remember-me"> 
-                <label for="remember-me" style="font-size: 14px; color: var(--gray);">아이디 및 비밀번호 저장</label>
+                <input type="checkbox" id="remember-me"> <label for="remember-me" style="font-size:14px; color:var(--gray);">로그인 정보(ID/PW) 저장</label>
             </div>
             <button class="btn" onclick="handleAuth('login')">로그인</button>
             <div class="auth-links"><span onclick="handleAuth('signup')">계정 생성</span><span onclick="resetPassword()">비밀번호 찾기</span></div>
@@ -67,54 +66,17 @@
                     <div id="home-recent-list"></div>
                 </div>
             </div>
-
             <div id="page-log" class="page">
-                <div class="card">
-                    <h3>💰 입출금</h3>
-                    <div class="input-row">
-                        <select id="fund-currency" style="flex:0.4;"><option value="KRW">원화</option><option value="USD">달러</option></select>
-                        <input type="text" id="fund-amount" oninput="formatNumber(this)" placeholder="금액">
-                    </div>
-                    <div class="input-row">
-                        <button onclick="saveFund('in')" class="btn" style="background:var(--green); flex:1;">입금 (+)</button>
-                        <button onclick="saveFund('out')" class="btn" style="background:var(--up); flex:1;">출금 (-)</button>
-                    </div>
-                </div>
-                <div class="card">
-                    <h3>📝 매수/매도</h3>
-                    <div class="input-row">
-                        <select id="trade-type" style="flex:0.5;"><option value="buy">매수</option><option value="sell">매도</option></select>
-                        <select id="trade-currency" style="flex:0.5;"><option value="KRW">₩ (원화)</option><option value="USD">$ (미국)</option></select>
-                    </div>
-                    <input type="text" id="stock-name" class="input-group" placeholder="종목명">
-                    <div class="input-row">
-                        <input type="text" id="stock-qty" oninput="formatNumber(this)" placeholder="수량">
-                        <input type="text" id="stock-price" oninput="formatNumber(this)" placeholder="단가">
-                    </div>
-                    <button class="btn" onclick="saveTrade()">저장하기</button>
-                </div>
-                <div class="card">
-                    <h3>📅 활동 내역</h3>
-                    <div id="log-history-list" class="history-list"></div>
-                </div>
+                <div class="card"><h3>💰 입출금</h3><div class="input-row"><select id="fund-currency" style="flex:0.4;"><option value="KRW">원화</option><option value="USD">달러</option></select><input type="text" id="fund-amount" oninput="formatNumber(this)" placeholder="금액"></div><div class="input-row"><button onclick="saveFund('in')" class="btn" style="background:var(--green); flex:1;">입금 (+)</button><button onclick="saveFund('out')" class="btn" style="background:var(--up); flex:1;">출금 (-)</button></div></div>
+                <div class="card"><h3>📝 매수/매도</h3><div class="input-row"><select id="trade-type" style="flex:0.5;"><option value="buy">매수</option><option value="sell">매도</option></select><select id="trade-currency" style="flex:0.5;"><option value="KRW">₩ (원화)</option><option value="USD">$ (미국)</option></select></div><input type="text" id="stock-name" class="input-group" placeholder="종목명"><div class="input-row"><input type="text" id="stock-qty" oninput="formatNumber(this)" placeholder="수량"><input type="text" id="stock-price" oninput="formatNumber(this)" placeholder="단가"></div><button class="btn" onclick="saveTrade()">저장하기</button></div>
+                <div class="card"><h3>📅 활동 내역</h3><div id="log-history-list" class="history-list"></div></div>
             </div>
-
             <div id="page-profit" class="page">
-                <div class="card" style="background: var(--primary); color: white; text-align: center;">
-                    <small>총 평가금액</small><div id="p-total-eval" style="font-size: 24px; font-weight: bold;">₩ 0</div>
-                    <div style="margin-top:10px; display:flex; justify-content: space-around;">
-                        <div><small>매수원금</small><div id="p-total-buy">₩ 0</div></div>
-                        <div><small>잔여현금</small><div id="p-total-cash">₩ 0</div></div>
-                    </div>
-                </div>
+                <div class="card" style="background: var(--primary); color: white; text-align: center;"><small>총 평가금액</small><div id="p-total-eval" style="font-size: 24px; font-weight: bold;">₩ 0</div><div style="margin-top:10px; display:flex; justify-content: space-around;"><div><small>매수원금</small><div id="p-total-buy">₩ 0</div></div><div><small>잔여현금</small><div id="p-total-cash">₩ 0</div></div></div></div>
                 <div class="card"><table class="profit-table"><thead><tr><th>종목</th><th>평단(환산)</th><th style="text-align:right;">평가액</th></tr></thead><tbody id="stock-profit-table-body"></tbody></table></div>
             </div>
-
-            <div id="page-more" class="page">
-                <div class="card"><h3>⚙️ 관리</h3><button class="btn" style="background:var(--up); margin-bottom:10px;" onclick="clearAllData()">전체 데이터 초기화</button><button class="btn" style="background:var(--gray);" onclick="location.reload()">로그아웃</button></div>
-            </div>
+            <div id="page-more" class="page"><div class="card"><h3>⚙️ 관리</h3><button class="btn" style="background:var(--up); margin-bottom:10px;" onclick="clearAllData()">전체 데이터 초기화</button><button class="btn" style="background:var(--gray);" onclick="location.reload()">로그아웃</button></div></div>
         </div>
-
         <nav class="bottom-nav">
             <button class="nav-item active" onclick="changeTab('home', this)"><div>🏠</div><span>홈</span></button>
             <button class="nav-item" onclick="changeTab('log', this)"><div>📊</div><span>일지</span></button>
@@ -130,11 +92,10 @@
         let myChart = null; const EX_RATE = 1350.5;
 
         function updateUI(trades) {
-            let cashKRW = 0; let cashUSD = 0;
-            let stockKRW = 0; let stockUSD = 0;
+            let cashKRW = 0; let cashUSD = 0; let stockKRW = 0; let stockUSD = 0;
             let stocks = {}; let logHtml = ""; let homeRecentHtml = "";
 
-            trades.forEach((t, idx) => {
+            trades.forEach((t) => {
                 const isFund = t.type === 'fund';
                 const cur = t.currency || 'KRW';
                 const basePrice = (cur === 'USD') ? t.price * EX_RATE : t.price;
@@ -146,26 +107,22 @@
                 } else {
                     const name = t.stockName;
                     if(!stocks[name]) stocks[name] = { qty: 0, cost: 0, cur: cur };
-                    
                     if(t.type === 'buy') {
-                        stocks[name].qty += t.quantity;
-                        stocks[name].cost += amt;
+                        stocks[name].qty += t.quantity; stocks[name].cost += amt;
                         if(cur === 'KRW') { stockKRW += amt; cashKRW -= t.quantity * t.price; }
                         else { stockUSD += amt; cashUSD -= t.quantity * t.price; }
                     } else {
                         const avg = stocks[name].cost / stocks[name].qty;
-                        stocks[name].qty -= t.quantity;
-                        stocks[name].cost -= avg * t.quantity;
+                        stocks[name].qty -= t.quantity; stocks[name].cost -= avg * t.quantity;
                         if(cur === 'KRW') { stockKRW -= avg * t.quantity; cashKRW += t.quantity * t.price; }
                         else { stockUSD -= avg * t.quantity; cashUSD += t.quantity * t.price; }
                     }
-                    
-                    // 홈 화면 최근 내역 (가격 추가)
-                    if(homeRecentHtml.split('</div>').length <= 5) {
-                        const symbol = cur === 'USD' ? '$' : '₩';
-                        homeRecentHtml += `<div style="padding:12px 0; border-bottom:1px solid #f0f0f0; font-size:13px;">
-                            <b>${name}</b> ${t.quantity}주 ${t.type==='buy'?'매수':'매도'} 
-                            <span style="color:var(--gray); float:right;">${symbol}${t.price.toLocaleString()}</span>
+                    // ★ 최근 매매 내역에 [가격] 반영 (홈 화면)
+                    if(homeRecentHtml.split('border-bottom').length <= 5) {
+                        const curSym = cur === 'USD' ? '$' : '₩';
+                        homeRecentHtml += `<div style="padding:12px 0; border-bottom:1px solid #f0f0f0; font-size:13px; display:flex; justify-content:space-between;">
+                            <span><b>${name}</b> ${t.quantity}주 ${t.type==='buy'?'매수':'매도'}</span>
+                            <span style="color:var(--primary); font-weight:bold;">${curSym}${t.price.toLocaleString()}</span>
                         </div>`;
                     }
                 }
@@ -176,82 +133,43 @@
                 </div>`;
             });
 
-            const totalCash = cashKRW + (cashUSD * EX_RATE);
-            const totalStock = stockKRW + stockUSD;
-            const totalEval = totalCash + totalStock;
-
+            const totalEval = cashKRW + (cashUSD * EX_RATE) + stockKRW + stockUSD;
             document.getElementById('h-total-krw').innerText = `₩ ${Math.floor(totalEval).toLocaleString()}`;
             document.getElementById('h-total-usd').innerText = `$ ${(totalEval / EX_RATE).toFixed(2)}`;
             document.getElementById('p-total-eval').innerText = `₩ ${Math.floor(totalEval).toLocaleString()}`;
-            document.getElementById('p-total-buy').innerText = `₩ ${Math.floor(totalStock).toLocaleString()}`;
-            document.getElementById('p-total-cash').innerText = `₩ ${Math.floor(totalCash).toLocaleString()}`;
-            
+            document.getElementById('p-total-buy').innerText = `₩ ${Math.floor(stockKRW + stockUSD).toLocaleString()}`;
+            document.getElementById('p-total-cash').innerText = `₩ ${Math.floor(cashKRW + cashUSD * EX_RATE).toLocaleString()}`;
             document.getElementById('log-history-list').innerHTML = logHtml || "내역 없음";
             document.getElementById('home-recent-list').innerHTML = homeRecentHtml || "내역 없음";
 
             let stockHtml = "";
-            for(let n in stocks) {
-                if(stocks[n].qty > 0) {
-                    stockHtml += `<tr><td><b>${n}</b><br><small>${stocks[n].qty}주 (${stocks[n].cur})</small></td><td>₩ ${Math.floor(stocks[n].cost/stocks[n].qty).toLocaleString()}</td><td style="text-align:right;">₩ ${Math.floor(stocks[n].cost).toLocaleString()}</td></tr>`;
-                }
-            }
+            for(let n in stocks) { if(stocks[n].qty > 0) { stockHtml += `<tr><td><b>${n}</b><br><small>${stocks[n].qty}주 (${stocks[n].cur})</small></td><td>₩ ${Math.floor(stocks[n].cost/stocks[n].qty).toLocaleString()}</td><td style="text-align:right;">₩ ${Math.floor(stocks[n].cost).toLocaleString()}</td></tr>`; } }
             document.getElementById('stock-profit-table-body').innerHTML = stockHtml || "<tr><td colspan='3' style='text-align:center;'>내역 없음</td></tr>";
-
             updateChart(stockKRW, cashKRW, stockUSD, cashUSD * EX_RATE);
         }
 
         function updateChart(sK, cK, sU, cU) {
             const ctx = document.getElementById('assetChart').getContext('2d');
             if(myChart) myChart.destroy();
-            const total = sK + cK + sU + cU;
-            myChart = new Chart(ctx, {
-                type: 'doughnut',
-                data: { 
-                    labels: ['한국주식', '원화현금', '미국주식', '달러현금'], 
-                    datasets: [{ 
-                        data: [sK, cK, sU, cU], 
-                        backgroundColor: ['#f1c40f', '#1266df', '#d93025', '#00a400'], 
-                        borderWidth: 2
-                    }] 
-                },
-                options: { 
-                    responsive: true, maintainAspectRatio: false,
-                    plugins: { 
-                        legend: { position: 'bottom', labels: { boxWidth: 12, font: { size: 11 } } },
-                        tooltip: {
-                            callbacks: {
-                                label: function(c) {
-                                    const val = c.raw;
-                                    const pct = total > 0 ? ((val / total) * 100).toFixed(1) : 0;
-                                    return ` ${c.label}: ₩${Math.floor(val).toLocaleString()} (${pct}%)`;
-                                }
-                            }
-                        }
-                    }
-                }
-            });
+            myChart = new Chart(ctx, { type: 'doughnut', data: { labels: ['한국주식', '원화현금', '미국주식', '달러현금'], datasets: [{ data: [sK, cK, sU, cU], backgroundColor: ['#f1c40f', '#1266df', '#d93025', '#00a400'] }] }, options: { responsive: true, maintainAspectRatio: false, plugins: { legend: { position: 'bottom' } } } });
         }
 
+        // ★ 아이디 및 비밀번호 저장 로직 수정
         async function handleAuth(type) {
             const email = document.getElementById('email').value;
             const pw = document.getElementById('pw1').value;
             const isRemember = document.getElementById('remember-me').checked;
-            
             if(!email || !pw) return alert("입력하세요.");
-            
             try {
                 if(type === 'login') await auth.signInWithEmailAndPassword(email, pw);
                 else await auth.createUserWithEmailAndPassword(email, pw);
-                
-                // 아이디 및 비밀번호 저장 로직
                 if(isRemember) {
                     localStorage.setItem('savedEmail', email);
-                    localStorage.setItem('savedPw', pw);
+                    localStorage.setItem('savedPw', pw); // 비밀번호 저장 추가
                 } else {
                     localStorage.removeItem('savedEmail');
                     localStorage.removeItem('savedPw');
                 }
-                
                 document.getElementById('auth-section').style.display = 'none';
                 document.getElementById('main-section').style.display = 'block';
                 subscribeData();
@@ -265,17 +183,10 @@
                 document.getElementById('email').value = savedEmail;
                 document.getElementById('remember-me').checked = true;
             }
-            if(savedPw) {
-                document.getElementById('pw1').value = savedPw;
-            }
+            if(savedPw) document.getElementById('pw1').value = savedPw; // 자동 채우기
         };
 
-        function subscribeData() {
-            db.collection("trades").where("uid", "==", auth.currentUser.uid).orderBy("date", "desc").onSnapshot(snap => {
-                let trades = []; snap.forEach(doc => trades.push({id: doc.id, ...doc.data()}));
-                updateUI(trades);
-            });
-        }
+        function subscribeData() { db.collection("trades").where("uid", "==", auth.currentUser.uid).orderBy("date", "desc").onSnapshot(snap => { let trades = []; snap.forEach(doc => trades.push({id: doc.id, ...doc.data()})); updateUI(trades); }); }
         async function saveTrade() {
             const name = document.getElementById('stock-name').value.trim().toUpperCase();
             const qty = Number(document.getElementById('stock-qty').value.replace(/,/g, ""));
@@ -292,24 +203,10 @@
             await db.collection("trades").add({ uid: auth.currentUser.uid, type: 'fund', direction: dir, currency: cur, amount: amt, date: new Date() });
             document.getElementById('fund-amount').value = "";
         }
-        async function clearAllData() {
-            if(!confirm("초기화하시겠습니까?")) return;
-            const snap = await db.collection("trades").where("uid", "==", auth.currentUser.uid).get();
-            const batch = db.batch(); snap.forEach(doc => batch.delete(doc.ref));
-            await batch.commit();
-        }
-        function changeTab(pageId, el) {
-            document.querySelectorAll('.page').forEach(p => p.classList.remove('active-page'));
-            document.getElementById('page-' + pageId).classList.add('active-page');
-            document.querySelectorAll('.nav-item').forEach(btn => btn.classList.remove('active'));
-            el.classList.add('active');
-        }
+        async function clearAllData() { if(!confirm("초기화하시겠습니까?")) return; const snap = await db.collection("trades").where("uid", "==", auth.currentUser.uid).get(); const batch = db.batch(); snap.forEach(doc => batch.delete(doc.ref)); await batch.commit(); }
+        function changeTab(pageId, el) { document.querySelectorAll('.page').forEach(p => p.classList.remove('active-page')); document.getElementById('page-' + pageId).classList.add('active-page'); document.querySelectorAll('.nav-item').forEach(btn => btn.classList.remove('active')); el.classList.add('active'); }
         function formatNumber(el) { let val = el.value.replace(/[^0-9]/g, ""); if(val) el.value = Number(val).toLocaleString(); }
-        async function resetPassword() {
-            const email = document.getElementById('email').value;
-            if(!email) return alert("이메일 입력 필요");
-            await auth.sendPasswordResetEmail(email); alert("발송완료");
-        }
+        async function resetPassword() { const email = document.getElementById('email').value; if(!email) return alert("이메일 입력 필요"); await auth.sendPasswordResetEmail(email); alert("발송완료"); }
     </script>
 </body>
 </html>
