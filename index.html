@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-    <title>BlissHo 자산관리 v1.0.3</title>
+    <title>BlissHo 자산관리 v1.0.4</title>
     <script src="https://www.gstatic.com/firebasejs/10.7.1/firebase-app-compat.js"></script>
     <script src="https://www.gstatic.com/firebasejs/10.7.1/firebase-auth-compat.js"></script>
     <script src="https://www.gstatic.com/firebasejs/10.7.1/firebase-firestore-compat.js"></script>
@@ -45,6 +45,7 @@
 
     <div id="main-section" style="display: none;">
         <div class="container">
+            
             <div id="page-home" class="page active-page">
                 <div class="card" style="text-align: center;">
                     <div style="font-size: 15px; color: var(--gray);">내 총 자산 평가액</div>
@@ -103,24 +104,33 @@
             </div>
 
             <div id="page-more" class="page">
-                <div class="card"><h3>⚙️ 관리</h3><button class="btn" style="background:var(--up);" onclick="clearAllData()">전체 데이터 초기화</button></div>
+                <div class="card">
+                    <h3 style="margin-top:0;">⚙️ 데이터 관리</h3>
+                    <p style="font-size: 14px; color: var(--gray); margin-bottom: 20px;">
+                        주의: 데이터 초기화 시 지금까지 입력한 모든 매매 기록과 입출금 내역이 영구적으로 삭제됩니다.
+                    </p>
+                    <button class="btn" style="background:var(--up); margin-bottom: 15px;" onclick="clearAllData()">전체 데이터 초기화</button>
+                    <button class="btn" style="background:var(--gray);" onclick="location.reload()">로그아웃</button>
+                </div>
             </div>
         </div>
 
         <nav class="bottom-nav">
             <button class="nav-item active" onclick="changeTab('home', this)"><div>🏠</div><span>홈</span></button>
-            <button class="nav-item" onclick="changeTab('log', this)"><div>📊</div><span>매매일지</span></button>
-            <button class="nav-item" onclick="changeTab('profit', this)"><div>💰</div><span>수익현황</span></button>
+            <button class="nav-item" onclick="changeTab('log', this)"><div>📊</div><span>일지</span></button>
+            <button class="nav-item" onclick="changeTab('profit', this)"><div>💰</div><span>수익</span></button>
             <button class="nav-item" onclick="changeTab('more', this)"><div>⚙️</div><span>더보기</span></button>
         </nav>
     </div>
 
     <script>
+        // Firebase 설정
         const firebaseConfig = { apiKey: "AIzaSyCEPH9Y5e0VoqGl4FViWo5pVlA8UlxpzCg", authDomain: "assetmanager-66aec.firebaseapp.com", projectId: "assetmanager-66aec", storageBucket: "assetmanager-66aec.firebasestorage.app", messagingSenderId: "928785817084", appId: "1:928785817084:web:2b75ce39d745bdc3202679" };
         firebase.initializeApp(firebaseConfig);
         const auth = firebase.auth(); const db = firebase.firestore();
         let myChart = null; const EX_RATE = 1350.5;
 
+        // 실시간 리스너 함수
         function subscribeData() {
             const user = auth.currentUser;
             if(!user) return;
@@ -131,8 +141,9 @@
             });
         }
 
+        // 전체 UI 실시간 갱신 로직
         function updateUI(trades) {
-            let cash = 0; let stockValue = 0; let totalBuy = 0;
+            let cash = 0; let totalBuy = 0;
             let stocks = {}; let logHtml = ""; let homeRecentHtml = "";
 
             trades.forEach((t, idx) => {
@@ -147,13 +158,11 @@
                     if(t.type === 'buy') { stocks[name].qty += t.quantity; stocks[name].cost += amt; totalBuy += amt; cash -= amt; }
                     else { stocks[name].qty -= t.quantity; stocks[name].cost -= (stocks[name].cost/stocks[name].qty) * t.quantity; cash += amt; }
                     
-                    // ◆(2) 홈 화면용 최근 매매 리스트 (최신 5개)
                     if(homeRecentHtml.split('</div>').length <= 5) {
                         homeRecentHtml += `<div style="padding:10px 0; border-bottom:1px solid #f0f0f0; font-size:13px;"><b>${t.stockName}</b> ${t.quantity}주 ${t.type==='buy'?'매수':'매도'}</div>`;
                     }
                 }
 
-                // ◆(1) 매매일지용 전체 활동 내역 리스트
                 const label = isFund ? (t.direction==='in'?'입금':'출금') : (t.type==='buy'?'매수':'매도');
                 const badge = (t.type==='buy'||t.direction==='in') ? 'in' : 'out';
                 logHtml += `<div style="display:flex; justify-content:space-between; padding:12px 0; border-bottom:1px solid #f0f0f0;">
@@ -162,7 +171,6 @@
                 </div>`;
             });
 
-            // 화면 데이터 업데이트
             const totalEval = cash + totalBuy;
             document.getElementById('h-total-krw').innerText = `₩ ${totalEval.toLocaleString()}`;
             document.getElementById('h-total-usd').innerText = `$ ${(totalEval / EX_RATE).toFixed(2)}`;
@@ -170,9 +178,8 @@
             document.getElementById('p-total-buy').innerText = `₩ ${totalBuy.toLocaleString()}`;
             document.getElementById('p-total-cash').innerText = `₩ ${cash.toLocaleString()}`;
             document.getElementById('log-history-list').innerHTML = logHtml || "내역 없음";
-            document.getElementById('home-recent-list').innerHTML = homeRecentHtml || "매매 내역 없음";
+            document.getElementById('home-recent-list').innerHTML = homeRecentHtml || "내역 없음";
 
-            // 수익현황 테이블
             let stockHtml = "";
             for(let name in stocks) {
                 if(stocks[name].qty <= 0) continue;
@@ -182,6 +189,7 @@
             updateChart(totalBuy, cash);
         }
 
+        // 차트 업데이트
         function updateChart(stock, cash) {
             const ctx = document.getElementById('assetChart').getContext('2d');
             if(myChart) myChart.destroy();
@@ -192,6 +200,40 @@
             });
         }
 
+        // [핵심 기능: 전체 데이터 삭제]
+        async function clearAllData() {
+            if(!confirm("⚠️ 경고: 모든 데이터를 삭제하시겠습니까? 삭제 후에는 복구할 수 없습니다.")) return;
+            
+            const user = auth.currentUser;
+            if(!user) return;
+
+            try {
+                // 1. 해당 사용자의 모든 문서를 가져옴
+                const snapshot = await db.collection("trades").where("uid", "==", user.uid).get();
+                
+                if (snapshot.empty) {
+                    alert("삭제할 데이터가 없습니다.");
+                    return;
+                }
+
+                // 2. Batch를 사용하여 한 번에 삭제 처리
+                const batch = db.batch();
+                snapshot.forEach(doc => {
+                    batch.delete(doc.ref);
+                });
+
+                await batch.commit();
+                alert("성공적으로 초기화되었습니다.");
+                // onSnapshot이 자동으로 감지하여 UI를 비우므로 새로고침은 불필요하지만, 
+                // 차트 초기화 등을 위해 홈으로 이동시킵니다.
+                changeTab('home', document.querySelector('.nav-item'));
+            } catch (e) {
+                console.error("삭제 에러:", e);
+                alert("삭제 중 오류가 발생했습니다: " + e.message);
+            }
+        }
+
+        // 기본 보조 함수들
         async function saveFund(dir) {
             const amt = Number(document.getElementById('fund-amount').value.replace(/,/g, ""));
             if(!amt) return;
@@ -206,14 +248,6 @@
             if(!name || !qty || !price) return;
             await db.collection("trades").add({ uid: auth.currentUser.uid, type: document.getElementById('trade-type').value, stockName: name, quantity: qty, price: price, date: new Date() });
             document.getElementById('stock-name').value = ""; document.getElementById('stock-qty').value = ""; document.getElementById('stock-price').value = "";
-        }
-
-        async function clearAllData() {
-            if(!confirm("정말 초기화할까요?")) return;
-            const snap = await db.collection("trades").where("uid", "==", auth.currentUser.uid).get();
-            const batch = db.batch();
-            snap.forEach(doc => batch.delete(doc.ref));
-            await batch.commit();
         }
 
         function changeTab(pageId, el) {
