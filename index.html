@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-    <title>BlissHo 자산관리 v1.0.11</title>
+    <title>BlissHo 자산관리 v1.0.12</title>
     <script src="https://www.gstatic.com/firebasejs/10.7.1/firebase-app-compat.js"></script>
     <script src="https://www.gstatic.com/firebasejs/10.7.1/firebase-auth-compat.js"></script>
     <script src="https://www.gstatic.com/firebasejs/10.7.1/firebase-firestore-compat.js"></script>
@@ -45,7 +45,7 @@
             </div>
             <button class="btn" onclick="handleAuth('login')">로그인</button>
             <div class="auth-links"><span onclick="handleAuth('signup')">계정 생성</span><span onclick="resetPassword()">비밀번호 찾기</span></div>
-            <div style="margin-top: 25px; font-size: 11px; color: #ccc;">version 1.0.11.</div>
+            <div style="margin-top: 25px; font-size: 11px; color: #ccc;">version 1.0.12.</div>
         </div>
     </div>
 
@@ -86,7 +86,9 @@
                         <select id="trade-type" style="flex:0.5;"><option value="buy">매수</option><option value="sell">매도</option></select>
                         <select id="trade-currency" style="flex:0.5;"><option value="KRW">₩ (원화)</option><option value="USD">$ (미국)</option></select>
                     </div>
-                    <input type="text" id="stock-name" class="input-group" placeholder="종목명 (예: 엔비디아 또는 NVDA)">
+                    <input type="text" id="stock-name" class="input-group" 
+                           placeholder="종목명 (미국주식: Ticker / 한국주식: 한글)" 
+                           oninput="detectCurrency(this)">
                     <div class="input-row">
                         <input type="text" id="stock-qty" oninput="formatNumber(this)" placeholder="수량">
                         <input type="text" id="stock-price" oninput="formatNumber(this)" placeholder="단가">
@@ -146,50 +148,60 @@
         const auth = firebase.auth(); const db = firebase.firestore();
         let myChart = null; const EX_RATE = 1350.5;
 
-        // 1. 종목명 별칭 매핑 (동일 종목 인식용)
+        // 종목명 별칭 매핑 (동일 종목 인식용)
         const stockAlias = {
-            "엔비디아": "NVDA", "엔비": "NVDA", "NVIDIA": "NVDA",
-            "애플": "AAPL", "APPLE": "AAPL",
-            "테슬라": "TSLA", "TESLA": "TSLA",
-            "삼성전자": "삼성전자", "삼성": "삼성전자",
-            "마이크로소프트": "MSFT", "마솟": "MSFT", "MICROSOFT": "MSFT",
-            "구글": "GOOGL", "알파벳": "GOOGL", "GOOGLE": "GOOGL"
+            "엔비디아": "NVDA", "로켓랩": "RKLL", "레드와이어": "RDW", "애플": "AAPL", "테슬라": "TSLA", "삼성": "삼성전자"
         };
+        // 한글로 입력해도 미국 주식으로 인식할 예외 리스트
+        const usStockKorean = ["엔비디아", "로켓랩", "레드와이어", "테슬라", "애플", "구글", "마이크로소프트"];
 
         function getStandardName(name) {
             const upperName = name.trim().toUpperCase();
             return stockAlias[upperName] || upperName;
         }
 
+        // ★ v1.0.12 핵심: 통화 자동 감지 로직
+        function detectCurrency(el) {
+            const val = el.value.trim();
+            const curSelect = document.getElementById('trade-currency');
+            if(!val) return;
+
+            const isKorean = /[ㄱ-ㅎ|ㅏ-ㅣ|가-힣]/.test(val);
+            const isUsException = usStockKorean.includes(val);
+
+            if (isUsException) {
+                curSelect.value = "USD";
+            } else if (isKorean) {
+                curSelect.value = "KRW";
+            } else if (/[a-zA-Z]/.test(val)) {
+                curSelect.value = "USD";
+            }
+        }
+
         function updateUI(trades) {
-            let cashKRW = 0; let cashUSD = 0; 
-            let stockBuyKRW = 0; let stockBuyUSD = 0;
+            let cashKRW = 0; let cashUSD = 0; let stockBuyKRW = 0; let stockBuyUSD = 0;
             let stocks = {}; let logHtml = ""; let homeRecentHtml = "";
 
             trades.forEach((t) => {
                 const isFund = t.type === 'fund';
                 const cur = t.currency || 'KRW';
-                
                 if(isFund) {
                     if(cur === 'KRW') cashKRW += (t.direction === 'in' ? 1 : -1) * t.amount;
                     else cashUSD += (t.direction === 'in' ? 1 : -1) * t.amount;
                 } else {
-                    const name = getStandardName(t.stockName); // 표준 이름 사용
+                    const name = getStandardName(t.stockName);
                     if(!stocks[name]) stocks[name] = { qty: 0, costKRW: 0, costUSD: 0, cur: cur };
                     const tradeAmt = t.quantity * t.price;
-                    
                     if(t.type === 'buy') {
                         stocks[name].qty += t.quantity;
                         if(cur === 'KRW') { stocks[name].costKRW += tradeAmt; stockBuyKRW += tradeAmt; cashKRW -= tradeAmt; }
                         else { stocks[name].costUSD += tradeAmt; stockBuyUSD += tradeAmt; cashUSD -= tradeAmt; }
                     } else {
-                        // 평균단가 기반 차감 (원화/달러 각각 비중 계산)
                         const ratio = t.quantity / (stocks[name].qty + t.quantity);
                         stocks[name].qty -= t.quantity;
                         if(cur === 'KRW') { stockBuyKRW -= (stocks[name].costKRW * ratio); cashKRW += tradeAmt; }
                         else { stockBuyUSD -= (stocks[name].costUSD * ratio); cashUSD += tradeAmt; }
                     }
-                    
                     if(homeRecentHtml.split('border-bottom').length <= 5) {
                         const curSym = cur === 'USD' ? '$' : '₩';
                         homeRecentHtml += `<div style="padding:12px 0; border-bottom:1px solid #f0f0f0; font-size:13px; display:flex; justify-content:space-between;">
@@ -205,7 +217,6 @@
                 </div>`;
             });
 
-            // 환산 합계 계산
             const totalStockKRW = Object.values(stocks).reduce((acc, s) => acc + s.costKRW + (s.costUSD * EX_RATE), 0);
             const totalEvalKRW = cashKRW + (cashUSD * EX_RATE) + totalStockKRW;
 
@@ -218,10 +229,6 @@
             document.getElementById('p-detail-cash-krw').innerText = `₩ ${Math.floor(cashKRW).toLocaleString()}`;
             document.getElementById('p-detail-cash-usd').innerText = `$ ${cashUSD.toLocaleString(undefined, {minimumFractionDigits: 2})}`;
 
-            document.getElementById('log-history-list').innerHTML = logHtml || "내역 없음";
-            document.getElementById('home-recent-list').innerHTML = homeRecentHtml || "내역 없음";
-
-            // 2. 수익 테이블 - 미국 주식 달러 우선 표기 로직
             let stockHtml = "";
             for(let n in stocks) { 
                 if(stocks[n].qty > 0) { 
@@ -230,21 +237,12 @@
                     const avgPriceUSD = avgPriceKRW / EX_RATE;
                     const evalKRW = stocks[n].costKRW + (stocks[n].costUSD * EX_RATE);
                     const evalUSD = evalKRW / EX_RATE;
-
-                    stockHtml += `<tr>
-                        <td><b>${n}</b><br><small>${stocks[n].qty}주 (${stocks[n].cur})</small></td>
-                        <td>
-                            ${isUSD ? `<div style="font-weight:bold;">$${avgPriceUSD.toFixed(2)}</div><div style="font-size:11px; color:var(--gray);">₩${Math.floor(avgPriceKRW).toLocaleString()}</div>` 
-                                    : `<div style="font-weight:bold;">₩${Math.floor(avgPriceKRW).toLocaleString()}</div><div style="font-size:11px; color:var(--gray);">$${avgPriceUSD.toFixed(2)}</div>`}
-                        </td>
-                        <td style="text-align:right;">
-                            ${isUSD ? `<div style="font-weight:bold; color:var(--primary);">$${evalUSD.toLocaleString(undefined,{maximumFractionDigits:2})}</div><div style="font-size:11px; color:var(--gray);">₩${Math.floor(evalKRW).toLocaleString()}</div>`
-                                    : `<div style="font-weight:bold; color:var(--primary);">₩${Math.floor(evalKRW).toLocaleString()}</div><div style="font-size:11px; color:var(--gray);">$${evalUSD.toFixed(2)}</div>`}
-                        </td>
-                    </tr>`; 
+                    stockHtml += `<tr><td><b>${n}</b><br><small>${stocks[n].qty}주 (${stocks[n].cur})</small></td><td>${isUSD ? `<div style="font-weight:bold;">$${avgPriceUSD.toFixed(2)}</div><div style="font-size:11px; color:var(--gray);">₩${Math.floor(avgPriceKRW).toLocaleString()}</div>` : `<div style="font-weight:bold;">₩${Math.floor(avgPriceKRW).toLocaleString()}</div><div style="font-size:11px; color:var(--gray);">$${avgPriceUSD.toFixed(2)}</div>`}</td><td style="text-align:right;">${isUSD ? `<div style="font-weight:bold; color:var(--primary);">$${evalUSD.toLocaleString(undefined,{maximumFractionDigits:2})}</div><div style="font-size:11px; color:var(--gray);">₩${Math.floor(evalKRW).toLocaleString()}</div>` : `<div style="font-weight:bold; color:var(--primary);">₩${Math.floor(evalKRW).toLocaleString()}</div><div style="font-size:11px; color:var(--gray);">$${evalUSD.toFixed(2)}</div>`}</td></tr>`; 
                 } 
             }
             document.getElementById('stock-profit-table-body').innerHTML = stockHtml || "<tr><td colspan='3' style='text-align:center;'>내역 없음</td></tr>";
+            document.getElementById('log-history-list').innerHTML = logHtml || "내역 없음";
+            document.getElementById('home-recent-list').innerHTML = homeRecentHtml || "내역 없음";
             updateChart(stockBuyKRW, cashKRW, stockBuyUSD * EX_RATE, cashUSD * EX_RATE);
         }
 
